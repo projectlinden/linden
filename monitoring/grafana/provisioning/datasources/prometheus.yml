@@ -1,0 +1,13 @@
+# Data sources as code – Grafana loads this on every start.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus          # fixed id, so dashboards in the repo can refer to it
+    type: prometheus
+    access: proxy            # Grafana's server talks to Prometheus, never the browser
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false          # changed in this file only, not by clicking in the UI
+    jsonData:
+      timeInterval: 30s      # same as Prometheus' scrape_interval
