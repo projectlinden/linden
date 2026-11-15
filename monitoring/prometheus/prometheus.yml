@@ -1,0 +1,9 @@
+# Prometheus scrape configuration for Kreds. Targets are added one service at a time.
+global:
+  scrape_interval: 30s       # calm: enough for a family-sized Kreds, less storage
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [ "localhost:9090" ]
