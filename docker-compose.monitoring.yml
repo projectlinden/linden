@@ -47,6 +47,18 @@ services:
         condition: service_healthy
     # No ports: only Prometheus reaches it, over the Docker network (9187)
 
+  opensearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0   # check for a newer patch
+    container_name: kreds-opensearch-exporter
+    logging: *default-logging
+    command:
+      - --es.uri=http://opensearch:9200
+      - --es.indices          # documents and size per index (places, statistics)
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    # No ports: only Prometheus reaches it, over the Docker network (9114)
+
 volumes:
   prometheus-data:
 
