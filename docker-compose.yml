@@ -20,6 +20,7 @@ services:
       # Read by postgres/init/10-create-databases.sh on the first start
       KREDS_DB_PASSWORD: ${KREDS_DB_PASSWORD}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      MONITORING_DB_PASSWORD: ${MONITORING_DB_PASSWORD}
     ports:
       - "127.0.0.1:5432:5432"
     volumes:

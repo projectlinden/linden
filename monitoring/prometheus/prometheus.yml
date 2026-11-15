@@ -20,3 +20,7 @@ scrape_configs:
       credentials_file: /run/secrets/garage_metrics_token
     static_configs:
       - targets: [ "garage:3903" ]
+
+  - job_name: postgres
+    static_configs:
+      - targets: [ "postgres-exporter:9187" ]

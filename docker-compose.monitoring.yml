@@ -32,6 +32,21 @@ services:
       timeout: 5s
       retries: 6
 
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
+    container_name: kreds-postgres-exporter
+    logging: *default-logging
+    environment:
+      DATA_SOURCE_URI: "postgres:5432/postgres?sslmode=disable"
+      DATA_SOURCE_USER: monitoring
+      DATA_SOURCE_PASS_FILE: /run/secrets/monitoring_db_password
+    secrets:
+      - monitoring_db_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # No ports: only Prometheus reaches it, over the Docker network (9187)
+
 volumes:
   prometheus-data:
 
@@ -39,3 +54,5 @@ secrets:
   # Created from .env at start-up; mounted read-only at /run/secrets/garage_metrics_token
   garage_metrics_token:
     environment: GARAGE_METRICS_TOKEN
+  monitoring_db_password:
+    environment: MONITORING_DB_PASSWORD
