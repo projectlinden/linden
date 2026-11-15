@@ -46,6 +46,12 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_HEALTH_ENABLED: "true"
+      # Metrics on the management port (9000) – only reachable inside the Docker network (ADR-0003)
+      KC_METRICS_ENABLED: "true"
+      KC_EVENT_METRICS_USER_ENABLED: "true"
+      # Labels: realm and client only – never user-specific
+      KC_EVENT_METRICS_USER_TAGS: "realm,clientId"
+      KC_EVENT_METRICS_USER_EVENTS: "login,logout,code_to_token,refresh_token"
     ports:
       - "127.0.0.1:8180:8080"   # 8080 on the host is kept free for Spring Boot
     volumes:
