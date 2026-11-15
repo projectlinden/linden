@@ -53,6 +53,7 @@ services:
       - "127.0.0.1:3000:3000"
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     secrets:
       - grafana_admin_password
