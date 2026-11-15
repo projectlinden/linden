@@ -34,6 +34,38 @@ services:
       timeout: 5s
       retries: 6
 
+  grafana:
+    image: grafana/grafana:13.1.0   # OSS edition (AGPL-3.0) – never grafana-enterprise
+    container_name: kreds-grafana
+    logging: *default-logging
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_admin_password
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Nothing leaves the machine: no usage reporting, update checks, news feed or Gravatar (US service)
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    secrets:
+      - grafana_admin_password
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:3000/api/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
     container_name: kreds-postgres-exporter
@@ -63,6 +95,7 @@ services:
 
 volumes:
   prometheus-data:
+  grafana-data:
 
 secrets:
   # Created from .env at start-up; mounted read-only at /run/secrets/garage_metrics_token
@@ -70,3 +103,5 @@ secrets:
     environment: GARAGE_METRICS_TOKEN
   monitoring_db_password:
     environment: MONITORING_DB_PASSWORD
+  grafana_admin_password:
+    environment: GRAFANA_ADMIN_PASSWORD
