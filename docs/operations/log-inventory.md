@@ -62,8 +62,10 @@ STATEMENT:  SELECT * FROM app_user WHERE email = 'anna@example.com'
 ```
 
 The app uses JDBC with bind parameters, so its statements show `$1` instead of values, and Postgres does not log
-parameter values on error by default (`log_parameter_max_length_on_error = 0`). Statements typed by hand (psql,
-maintenance scripts) still contain literal values. Therefore: `STATEMENT:` and `DETAIL:` lines are dropped.
+parameter values on error by default (`log_parameter_max_length_on_error = 0`). But two leaks remain:
+statements typed by hand (psql, maintenance scripts) contain literal values, and a failed unique constraint writes
+the value into the `DETAIL:` line, even for the app – e.g. `DETAIL: Key (email)=(anna@example.com) already exists.`
+Therefore: `STATEMENT:` and `DETAIL:` lines are dropped.
 
 ### OpenSearch, Dashboards, Garage
 
