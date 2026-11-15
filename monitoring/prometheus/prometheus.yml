@@ -28,3 +28,8 @@ scrape_configs:
   - job_name: opensearch
     static_configs:
       - targets: [ "opensearch-exporter:9114" ]
+
+  - job_name: kreds-app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [ "host.docker.internal:8081" ]   # the app runs on the host for now; later kreds-app:8081
