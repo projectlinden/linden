@@ -71,3 +71,32 @@ The realm lives in `keycloak/realm/kreds-realm.json` and is imported on startup 
 Check that the realm is up:
 
     curl -s http://localhost:8180/realms/kreds/.well-known/openid-configuration
+
+## Try the API with a real token
+
+Until `kreds-web` exists, you can log in by hand with Authorization Code + PKCE.
+
+1. Create a test user in realm `kreds`.
+2. Create a PKCE pair and open the printed URL:
+
+   ```bash
+   CODE_VERIFIER=$(openssl rand -base64 48 | tr -d '=+/\n' | cut -c1-64)
+   CODE_CHALLENGE=$(printf '%s' "$CODE_VERIFIER" | openssl dgst -sha256 -binary | openssl base64 | tr '+/' '-_' | tr -d '=\n')
+   echo "http://localhost:8180/realms/kreds/protocol/openid-connect/auth?client_id=kreds-web&response_type=code&scope=openid&redirect_uri=http://localhost:5173/&code_challenge=$CODE_CHALLENGE&code_challenge_method=S256"
+   ```
+
+3. Log in. The browser fails to open `localhost:5173` (expected) – copy the `code` from the address bar.
+   The code is valid for about one minute.
+4. Exchange the code and call the API:
+
+   ```bash
+   CODE='paste-the-code-here'
+   TOKEN=$(curl -s -X POST http://localhost:8180/realms/kreds/protocol/openid-connect/token \
+     -d grant_type=authorization_code -d client_id=kreds-web -d redirect_uri=http://localhost:5173/ \
+     -d code="$CODE" -d code_verifier="$CODE_VERIFIER" | jq -r .access_token)
+   curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/me
+   ```
+
+   Expected: `200` with `{"userId":"…"}` – the user's ID in Keycloak.
+
+Never paste tokens into online JWT decoders – a token is a key to the account.
