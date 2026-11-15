@@ -111,6 +111,7 @@ services:
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
       GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN}
     ports:
       - "127.0.0.1:3900:3900"   # S3 API
       - "127.0.0.1:3903:3903"   # Admin API
