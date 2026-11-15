@@ -1,0 +1,72 @@
+# Monitoring for Kreds (ADR-0003, ADR-0004). Same project as docker-compose.yml, so it shares its network.
+# Start everything:  docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+# Kreds only:        docker compose up -d
+name: kreds
+
+# YAML anchors only work inside one file, so the log settings are repeated here.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.13.3   # LTS line
+    container_name: kreds-prometheus
+    logging: *default-logging
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d   # ADR-0003: short retention
+    ports:
+      - "127.0.0.1:9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach the app running on the host (Linux; built in on macOS)
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    secrets:
+      - garage_metrics_token
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:9090/-/ready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
+    container_name: kreds-postgres-exporter
+    logging: *default-logging
+    environment:
+      DATA_SOURCE_URI: "postgres:5432/postgres?sslmode=disable"
+      DATA_SOURCE_USER: monitoring
+      DATA_SOURCE_PASS_FILE: /run/secrets/monitoring_db_password
+    secrets:
+      - monitoring_db_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # No ports: only Prometheus reaches it, over the Docker network (9187)
+
+  opensearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0   # check for a newer patch
+    container_name: kreds-opensearch-exporter
+    logging: *default-logging
+    command:
+      - --es.uri=http://opensearch:9200
+      - --es.indices          # documents and size per index (places, statistics)
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    # No ports: only Prometheus reaches it, over the Docker network (9114)
+
+volumes:
+  prometheus-data:
+
+secrets:
+  # Created from .env at start-up; mounted read-only at /run/secrets/garage_metrics_token
+  garage_metrics_token:
+    environment: GARAGE_METRICS_TOKEN
+  monitoring_db_password:
+    environment: MONITORING_DB_PASSWORD

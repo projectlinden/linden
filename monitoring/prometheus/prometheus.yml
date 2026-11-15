@@ -1,0 +1,35 @@
+# Prometheus scrape configuration for Kreds. Targets are added one service at a time.
+global:
+  scrape_interval: 30s       # calm: enough for a family-sized Kreds, less storage
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: [ "localhost:9090" ]
+
+  - job_name: keycloak
+    metrics_path: /metrics
+    static_configs:
+      - targets: [ "keycloak:9000" ]
+
+  - job_name: garage
+    metrics_path: /metrics
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/garage_metrics_token
+    static_configs:
+      - targets: [ "garage:3903" ]
+
+  - job_name: postgres
+    static_configs:
+      - targets: [ "postgres-exporter:9187" ]
+
+  - job_name: opensearch
+    static_configs:
+      - targets: [ "opensearch-exporter:9114" ]
+
+  - job_name: kreds-app
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: [ "host.docker.internal:8081" ]   # the app runs on the host for now; later kreds-app:8081
