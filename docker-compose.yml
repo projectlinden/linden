@@ -1,9 +1,18 @@
 name: kreds
 
+# Shared log settings: rotate at 10 MB, keep 3 files per container.
+# json-file stays the driver because log collectors read these files.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:17
     container_name: kreds-postgres
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_ADMIN_USER}
       POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD}
@@ -25,6 +34,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.2
     container_name: kreds-keycloak
+    logging: *default-logging
     # Development mode: plain HTTP, relaxed hostname checks. A server needs production mode (start, HTTPS, hostname).
     command: start-dev --import-realm
     environment:
@@ -54,6 +64,7 @@ services:
   opensearch:
     image: opensearchproject/opensearch:${OPENSEARCH_VERSION}
     container_name: kreds-opensearch
+    logging: *default-logging
     environment:
       - cluster.name=kreds-cluster
       - node.name=kreds-node-1
@@ -77,6 +88,7 @@ services:
   dashboards:
     image: opensearchproject/opensearch-dashboards:${OPENSEARCH_VERSION}
     container_name: kreds-dashboards
+    logging: *default-logging
     environment:
       - OPENSEARCH_HOSTS=["http://opensearch:9200"]
       - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
@@ -89,6 +101,7 @@ services:
   garage:
     image: dxflrs/garage:v2.5.0
     container_name: kreds-garage
+    logging: *default-logging
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
       GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN}
