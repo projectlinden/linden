@@ -111,6 +111,7 @@ services:
     container_name: kreds-loki-init
     labels:
       kreds.service: loki-init
+    logging: *default-logging
     command: [ "chown", "-R", "10001:10001", "/loki" ]
     volumes:
       - loki-data:/loki
