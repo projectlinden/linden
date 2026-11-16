@@ -7,11 +7,14 @@ x-logging: &default-logging
   options:
     max-size: "10m"
     max-file: "3"
+    labels: "kreds.service"
 
 services:
   postgres:
     image: postgres:17
     container_name: kreds-postgres
+    labels:
+      kreds.service: postgres
     logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_ADMIN_USER}
@@ -35,6 +38,8 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.2
     container_name: kreds-keycloak
+    labels:
+      kreds.service: keycloak
     logging: *default-logging
     # Development mode: plain HTTP, relaxed hostname checks. A server needs production mode (start, HTTPS, hostname).
     command: start-dev --import-realm
@@ -71,6 +76,8 @@ services:
   opensearch:
     image: opensearchproject/opensearch:${OPENSEARCH_VERSION}
     container_name: kreds-opensearch
+    labels:
+      kreds.service: opensearch
     logging: *default-logging
     environment:
       - cluster.name=kreds-cluster
@@ -95,6 +102,8 @@ services:
   dashboards:
     image: opensearchproject/opensearch-dashboards:${OPENSEARCH_VERSION}
     container_name: kreds-dashboards
+    labels:
+      kreds.service: dashboards
     logging: *default-logging
     environment:
       - OPENSEARCH_HOSTS=["http://opensearch:9200"]
@@ -108,6 +117,8 @@ services:
   garage:
     image: dxflrs/garage:v2.5.0
     container_name: kreds-garage
+    labels:
+      kreds.service: garage
     logging: *default-logging
     environment:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}

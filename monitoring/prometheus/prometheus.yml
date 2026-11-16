@@ -37,3 +37,8 @@ scrape_configs:
   - job_name: loki
     static_configs:
       - targets: [ "loki:3100" ]
+
+  - job_name: fluent-bit
+    metrics_path: /api/v2/metrics/prometheus
+    static_configs:
+      - targets: [ "fluent-bit:2020" ]

@@ -1,0 +1,67 @@
+# Fluent Bit – the one filter point for Kreds logs (ADR-0003, ADR-0004).
+# Reads the Docker log files, keeps only approved services and only the fields we need, and sends them to Loki.
+# Personal data must be removed HERE, before anything is stored (see docs/operations/log-inventory.md).
+
+service:
+  flush: 5
+  log_level: warn
+  http_server: on              # metrics for Prometheus on :2020 (Docker network only)
+  http_listen: 0.0.0.0
+  http_port: 2020
+  storage.path: /fluent-bit/state/buffer
+
+parsers:
+  # Docker's json-file format: {"log": "...", "stream": "stdout", "attrs": {...}, "time": "..."}
+  - name: docker
+    format: json
+    time_key: time
+    time_format: "%Y-%m-%dT%H:%M:%S.%L%z"
+    time_keep: off
+
+pipeline:
+  inputs:
+    - name: tail
+      tag: docker.*
+      path: /var/lib/docker/containers/*/*-json.log
+      parser: docker
+      db: /fluent-bit/state/tail.db   # remembers how far each file was read – no duplicates after a restart
+      read_from_head: false           # start with new lines only
+      refresh_interval: 10
+      mem_buf_limit: 5MB
+      skip_long_lines: on
+
+  filters:
+    # attrs.kreds.service (copied by Docker from the container label) → top-level field "service"
+    - name: nest
+      match: docker.*
+      operation: lift
+      nested_under: attrs
+
+    - name: modify
+      match: docker.*
+      rename: kreds.service service
+
+    # Allow list: only services whose logs are known to be free of personal data.
+    # Keycloak and Postgres are added only together with their filters (log-inventory.md).
+    # Lines without a service label (other containers on this machine) are dropped too.
+    - name: grep
+      match: docker.*
+      regex: service ^(prometheus|grafana|loki|garage|opensearch|dashboards|postgres-exporter|opensearch-exporter)$
+
+    # Keep only the log text and the service – drop stream, attrs and everything else
+    - name: record_modifier
+      match: docker.*
+      allowlist_key:
+        - log
+        - service
+
+  outputs:
+    - name: loki
+      match: docker.*
+      host: loki
+      port: 3100
+      # Few, fixed labels – never personal ones (ADR-0004)
+      labels: env=${KREDS_ENV}, service=$service
+      remove_keys: service
+      line_format: key_value
+      drop_single_key: raw            # the stored line is just the log text
