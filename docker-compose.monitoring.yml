@@ -95,6 +95,16 @@ services:
       timeout: 5s
       retries: 6
 
+  loki-init:
+    # One-shot: new volumes belong to root, but Loki runs as the unprivileged user 10001.
+    # Hands the data volume to that user, then exits. Loki itself never runs as root.
+    image: busybox:1.37.0
+    container_name: kreds-loki-init
+    command: [ "chown", "-R", "10001:10001", "/loki" ]
+    volumes:
+      - loki-data:/loki
+    restart: "no"
+
   loki:
     image: grafana/loki:3.6.0   # newest stable 3.x.y – check before committing
     container_name: kreds-loki
@@ -103,6 +113,10 @@ services:
     volumes:
       - ./monitoring/loki/loki.yml:/etc/loki/loki.yml:ro
       - loki-data:/loki
+    user: "10001:10001"
+    depends_on:
+      loki-init:
+        condition: service_completed_successfully
     # No ports: Loki has no login of its own (ADR-0004). Only Grafana and Fluent Bit reach it.
 
 volumes:
