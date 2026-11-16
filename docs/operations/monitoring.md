@@ -1,8 +1,8 @@
 # Monitoring
 
-How Kreds watches itself: metrics, health and (later) logs and alerts – **without ever seeing what users share**.
+How Kreds watches itself: metrics, health, logs and (later) alerts – **without ever seeing what users share**.
 Decisions: ADR-0003 (Prometheus for metrics, Grafana for dashboards and alerts) and ADR-0004 (Loki for logs).
-Logs: see [log-inventory.md](log-inventory.md).
+What each service logs and where personal data hides: [log-inventory.md](log-inventory.md).
 
 ## Overview
 
@@ -18,8 +18,12 @@ flowchart LR
         osx["opensearch-exporter<br/>:9114"] --> os[("OpenSearch")]
         prom["Prometheus<br/>127.0.0.1:9090"]
         grafana["Grafana<br/>127.0.0.1:3000"]
+        fb["Fluent Bit<br/>redact.lua"]
+        loki["Loki<br/>no port"]
     end
+    logs[("Docker log files")] --> fb --> loki
     grafana --> prom
+    grafana --> loki
     prom --> app
     prom --> kc
     prom --> garage
@@ -38,6 +42,8 @@ the only monitoring UI with a login.
 | `postgres`   | `postgres-exporter:9187`                        | Docker network only                                                                   | Exporter logs in as role `monitoring`                                    |
 | `opensearch` | `opensearch-exporter:9114`                      | Docker network only                                                                   | None yet (OpenSearch security is off locally)                            |
 | `kreds-app`  | `host.docker.internal:8081/actuator/prometheus` | Management port of the app, bound to `KREDS_MANAGEMENT_ADDRESS` (default `127.0.0.1`) | None – the port is never public                                          |
+| `loki`       | `loki:3100/metrics`                             | Docker network only                                                                   | –                                                                        |
+| `fluent-bit` | `fluent-bit:2020/api/v2/metrics/prometheus`     | Docker network only                                                                   | –                                                                        |
 
 ## Starting and stopping
 
@@ -82,10 +88,60 @@ Everything is **provisioned as code** from `monitoring/grafana/`:
 | `provisioning/datasources/prometheus.yml` | Data source `Prometheus` with the fixed uid `prometheus`; not editable in the UI                                                                  |
 | `provisioning/dashboards/kreds.yml`       | Loads every JSON file from `dashboards/` into the folder *Kreds*; UI changes cannot be saved                                                      |
 | `dashboards/kreds-overview.json`          | **"Kreds – is it OK?"** – services up, Postgres reachable, OpenSearch not red, logins per hour, app requests and errors, JVM heap, database sizes |
+| `dashboards/kreds-logs.json`              | **"Kreds – logs"** – dropdowns for service and level, log lines per service, errors and warnings, the log lines themselves                        |
 
 **Changing a dashboard:** edit it in the UI to try things out, then *Export → Export as JSON*, replace the file in
 `dashboards/`, and discard the UI changes. Grafana reloads the file within 30 seconds. Every panel must use the data
 source uid `prometheus` – an exported dashboard from another Grafana may carry a different one.
+
+## Logs (Fluent Bit → Loki)
+
+```
+container → Docker log file → Fluent Bit (allow list, redact.lua) → Loki → Grafana
+```
+
+- **Docker** writes every container's output to a JSON log file (rotated: 10 MB × 3). The shared logging block copies
+  the container label `kreds.service` into every line, so Fluent Bit knows which service wrote it.
+- **Fluent Bit** (`monitoring/fluent-bit/`) is the **one filter point** – personal data is removed here, before
+  anything is stored:
+    - **Allow list:** only services named in `fluent-bit.yaml` are shipped. A new service sends nothing until it is
+      added – after checking its logs for personal data (`log-inventory.md`).
+    - **`redact.lua`:** removes Keycloak's `username`, `ipAddress`, `code_id` and IP addresses; drops Postgres'
+      `STATEMENT:` and `DETAIL:` lines; replaces every email address in every service with `[email removed]`.
+    - Keeps only the log text; labels are `service` and `env` (`KREDS_ENV`, `local` here). Fluent Bit's own logs are
+      never shipped (no label – no loop).
+    - Runs as **root**, because Docker's log folder is readable only by root. Mitigation: read-only mount, no ports.
+- **Loki** stores the lines for **14 days** (compactor retention), has **no port and no login** (ADR-0004), and its
+  usage reporting to Grafana Labs is **off** (`analytics.reporting_enabled: false`). A one-shot `loki-init` container
+  (BusyBox) hands the data volume to Loki's unprivileged user `10001`.
+- **Labels and levels:**
+    - `service` and `env` are our own labels (set by Fluent Bit). Loki's automatic copy `service_name` is switched off
+      (`discover_service_name: []`) – it would only duplicate `service`.
+    - `detected_level` is added by Loki (`discover_log_levels: true`): the level found in each line, **normalised** to
+      `debug` / `info` / `warn` / `error` (or `unknown`) – one filter for every log format (Keycloak `WARN`, Postgres
+      `ERROR:`, Grafana `level=info`). It is structured metadata, not a label, so it costs no extra streams.
+    - The `level` Grafana shows in a line's details is just read from the line text – nothing stored.
+- **Grafana** reads Loki through the provisioned data source (uid `loki`). The dashboard **"Kreds – logs"** has
+  dropdowns for service and level; **Explore** is the place for free LogQL, e.g.:
+
+```
+{service="keycloak"} |= "LOGIN_ERROR"                       # failed logins (without usernames)
+{service=~"keycloak|postgres"} | detected_level="error"     # errors of both filtered services
+sum by (service) (count_over_time({service=~".+"}[5m]))     # lines per service
+```
+
+**Testing the filter – with fake data only.** Never test redaction by sending real personal data to Loki:
+
+```bash
+monitoring/fluent-bit/test/run-redact-test.sh
+```
+
+It runs `redact.lua` on `test/samples.log` (fake lines) in a throwaway container and fails if any personal data
+survives – or if useful information (`LOGIN_ERROR`, `user_not_found`, Postgres `ERROR:`) is lost. `samples.log` is
+explicitly allowed in `.gitignore` (`*.log` is ignored otherwise).
+
+**Adding a service to the logs:** label it (`kreds.service`), look at its real output, extend `redact.lua` and
+`samples.log` if needed, run the test, then add it to the allow list.
 
 ## Secrets and roles
 
@@ -142,22 +198,31 @@ The data classification applies to metrics too ("when in doubt, encrypt"):
 
 ## Checks (Bruno)
 
+**PromQL and LogQL queries go into Bruno's URL field as plain text** (`?query={env="local"}&limit=1000&since=1h`) –
+Bruno encodes them itself. Pre-encoded URLs (`%7B...`) or the Params tab lose the query.
+
 Grafana credentials live in a Bruno environment as **secret variables** (`grafanaUser`, `grafanaPassword`) – never
 in a request file. A failing targets check names the job, its URL and Prometheus' `lastError`.
 
-| Request                                                        | What it proves                                                                         |
-|----------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| `GET :9090/api/v1/targets`                                     | All expected jobs exist and are `up`                                                   |
-| `query=keycloak_user_events_total`                             | Login events are counted; label names only from the allow-list                         |
-| `GET :3903/metrics` (no token)                                 | Garage refuses metrics without the token (`401`/`403`)                                 |
-| `query={job="garage"}`                                         | No `@` in any label value                                                              |
-| `query=pg_up`                                                  | The exporter can really log in to Postgres (`"1"`)                                     |
-| `query=elasticsearch_cluster_health_number_of_nodes`           | The exporter really reaches OpenSearch                                                 |
-| `query=elasticsearch_cluster_health_status`                    | Cluster is not red (picked by the `color` label, never by position)                    |
-| `GET :3000/api/health`                                         | Grafana runs and its database is OK                                                    |
-| `GET :3000/api/datasources/uid/prometheus/health` (Basic auth) | Grafana itself can query Prometheus                                                    |
-| `GET :3000/api/datasources` (no auth)                          | No anonymous access (`401`)                                                            |
-| `GET :3000/api/dashboards/uid/kreds-overview` (Basic auth)     | The overview dashboard is provisioned from the repo; every panel uses uid `prometheus` |
+| Request                                                               | What it proves                                                                                                       |
+|-----------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `GET :9090/api/v1/targets`                                            | All expected jobs exist and are `up`                                                                                 |
+| `query=keycloak_user_events_total`                                    | Login events are counted; label names only from the allow-list                                                       |
+| `GET :3903/metrics` (no token)                                        | Garage refuses metrics without the token (`401`/`403`)                                                               |
+| `query={job="garage"}`                                                | No `@` in any label value                                                                                            |
+| `query=pg_up`                                                         | The exporter can really log in to Postgres (`"1"`)                                                                   |
+| `query=elasticsearch_cluster_health_number_of_nodes`                  | The exporter really reaches OpenSearch                                                                               |
+| `query=elasticsearch_cluster_health_status`                           | Cluster is not red (picked by the `color` label, never by position)                                                  |
+| `GET :3000/api/health`                                                | Grafana runs and its database is OK                                                                                  |
+| `GET :3000/api/datasources/uid/prometheus/health` (Basic auth)        | Grafana itself can query Prometheus                                                                                  |
+| `GET :3000/api/datasources` (no auth)                                 | No anonymous access (`401`)                                                                                          |
+| `GET :3000/api/dashboards/uid/kreds-overview` (Basic auth)            | The overview dashboard is provisioned from the repo; metrics only (no log panels); links to the logs dashboard       |
+| `GET :3000/api/dashboards/uid/kreds-logs` (Basic auth)                | Logs dashboard provisioned; every panel reads from Loki; dropdowns `service` and `level`                             |
+| `GET :3000/api/datasources/proxy/uid/loki/ready`                      | Loki runs and Grafana reaches it                                                                                     |
+| `GET :3000/api/datasources/proxy/uid/loki/config`                     | Loki sends no usage reports; retention 14 days                                                                       |
+| `GET …/loki/api/v1/label/service/values`                              | Filtered services (Keycloak, Postgres) arrive                                                                        |
+| `GET …/loki/api/v1/query_range?query={env="local"}`                   | No email address in any stored line; only labels `env`, `service`, `detected_level`                                  |
+| `GET …/loki/api/v1/query_range?query={service=~"keycloak\|postgres"}` | No `username=`, `ipAddress=`, `code_id=`, `STATEMENT:`, `DETAIL:`; `LOGIN_ERROR` and Postgres `ERROR:` still visible |
 
 ## Good to know
 
@@ -176,4 +241,5 @@ in a request file. A failing targets check names the job, its URL and Prometheus
 
 - OpenSearch security on → the opensearch-exporter gets its own read-only monitoring user.
 - Postgres on its own server → TLS (`sslmode=verify-full`) for the exporter.
-- Prometheus, exporters and (later) Loki stay on the internal network; only Grafana gets a login.
+- Prometheus, exporters, Fluent Bit and Loki stay on the internal network; only Grafana gets a login.
+- `KREDS_ENV=server` for Fluent Bit, so server logs are labelled `env="server"`.
