@@ -41,12 +41,18 @@ pipeline:
       match: docker.*
       rename: kreds.service service
 
-    # Allow list: only services whose logs are known to be free of personal data.
-    # Keycloak and Postgres are added only together with their filters (log-inventory.md).
+    # Allow list: only services whose logs are free of personal data – or made free of it by redact.lua.
     # Lines without a service label (other containers on this machine) are dropped too.
     - name: grep
       match: docker.*
-      regex: service ^(prometheus|grafana|loki|garage|opensearch|dashboards|postgres-exporter|opensearch-exporter)$
+      regex: service ^(prometheus|grafana|loki|garage|opensearch|dashboards|postgres-exporter|opensearch-exporter|keycloak|postgres)$
+
+    # Remove personal data (log-inventory.md): Keycloak username/ipAddress/code_id and IPs,
+    # Postgres STATEMENT/DETAIL lines, and every email address in every service
+    - name: lua
+      match: docker.*
+      script: /fluent-bit/etc/redact.lua
+      call: redact
 
     # Keep only the log text and the service – drop stream, attrs and everything else
     - name: record_modifier

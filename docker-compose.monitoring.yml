@@ -144,7 +144,7 @@ services:
     environment:
       KREDS_ENV: local               # becomes the env label; "server" later
     volumes:
-      - ./monitoring/fluent-bit/fluent-bit.yaml:/fluent-bit/etc/fluent-bit.yaml:ro
+      - ./monitoring/fluent-bit:/fluent-bit/etc:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - fluent-bit-state:/fluent-bit/state
     depends_on:

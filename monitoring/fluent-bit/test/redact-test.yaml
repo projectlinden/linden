@@ -1,0 +1,28 @@
+# Tests redact.lua with FAKE log lines only (samples.log) – never with real data.
+# Run with: monitoring/fluent-bit/test/run-redact-test.sh
+service:
+  flush: 1
+  log_level: warn
+
+parsers:
+  - name: json
+    format: json
+
+pipeline:
+  inputs:
+    - name: tail
+      path: /fluent-bit/etc/test/samples.log
+      parser: json
+      read_from_head: on
+      exit_on_eof: on           # read the file once, then stop
+
+  filters:
+    - name: lua
+      match: "*"
+      script: /fluent-bit/etc/redact.lua
+      call: redact
+
+  outputs:
+    - name: stdout
+      match: "*"
+      format: json_lines
