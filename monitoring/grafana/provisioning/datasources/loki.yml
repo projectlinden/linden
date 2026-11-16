@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    uid: loki                # fixed id for dashboards in the repo
+    type: loki
+    access: proxy            # Grafana's server talks to Loki – Loki is not reachable from the browser
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000

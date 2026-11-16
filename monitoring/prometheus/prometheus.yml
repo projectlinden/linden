@@ -33,3 +33,7 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: [ "host.docker.internal:8081" ]   # the app runs on the host for now; later kreds-app:8081
+
+  - job_name: loki
+    static_configs:
+      - targets: [ "loki:3100" ]

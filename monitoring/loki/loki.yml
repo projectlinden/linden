@@ -1,0 +1,42 @@
+# Loki – single binary, local filesystem (ADR-0004).
+# No login of its own: reachable only on the Docker network; Grafana reads, Fluent Bit writes.
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+
+schema_config:
+  configs:
+    - from: 2026-11-16          # the day Kreds started storing logs; never change an existing entry
+      store: tsdb
+      object_store: filesystem  # before going public: S3-compatible storage in the Nordics (ADR-0004)
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  retention_period: 336h        # 14 days – enough for "what happened last week", short for privacy
+
+compactor:
+  working_directory: /loki/compactor
+  retention_enabled: true       # actually deletes logs older than retention_period
+  delete_request_store: filesystem   # enables the delete API, in case something leaks in by mistake
+  retention_delete_delay: 2h
+
+# Loki reports usage to Grafana Labs (US) by default – never (VISION.md § 6)
+analytics:
+  reporting_enabled: false
