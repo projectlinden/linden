@@ -92,6 +92,8 @@ fabric.properties
 
 # Log file
 *.log
+# Fake log lines for the Fluent Bit redaction test – test data, not a real log
+!monitoring/fluent-bit/test/samples.log
 
 # BlueJ files
 *.ctxt

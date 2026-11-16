@@ -9,11 +9,14 @@ x-logging: &default-logging
   options:
     max-size: "10m"
     max-file: "3"
+    labels: "kreds.service"
 
 services:
   prometheus:
     image: prom/prometheus:v3.13.3   # LTS line
     container_name: kreds-prometheus
+    labels:
+      kreds.service: prometheus
     logging: *default-logging
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -34,9 +37,42 @@ services:
       timeout: 5s
       retries: 6
 
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
+    container_name: kreds-postgres-exporter
+    labels:
+      kreds.service: postgres-exporter
+    logging: *default-logging
+    environment:
+      DATA_SOURCE_URI: "postgres:5432/postgres?sslmode=disable"
+      DATA_SOURCE_USER: monitoring
+      DATA_SOURCE_PASS_FILE: /run/secrets/monitoring_db_password
+    secrets:
+      - monitoring_db_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # No ports: only Prometheus reaches it, over the Docker network (9187)
+
+  opensearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0   # check for a newer patch
+    container_name: kreds-opensearch-exporter
+    labels:
+      kreds.service: opensearch-exporter
+    logging: *default-logging
+    command:
+      - --es.uri=http://opensearch:9200
+      - --es.indices          # documents and size per index (places, statistics)
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    # No ports: only Prometheus reaches it, over the Docker network (9114)
+
   grafana:
     image: grafana/grafana:13.1.0   # OSS edition (AGPL-3.0) – never grafana-enterprise
     container_name: kreds-grafana
+    labels:
+      kreds.service: grafana
     logging: *default-logging
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
@@ -60,42 +96,67 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+      loki:
+        condition: service_started
     healthcheck:
       test: [ "CMD", "wget", "-qO-", "http://localhost:3000/api/health" ]
       interval: 10s
       timeout: 5s
       retries: 6
 
-  postgres-exporter:
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
-    container_name: kreds-postgres-exporter
+  loki-init:
+    # One-shot: new volumes belong to root, but Loki runs as the unprivileged user 10001.
+    # Hands the data volume to that user, then exits. Loki itself never runs as root.
+    image: busybox:1.37.0
+    container_name: kreds-loki-init
+    labels:
+      kreds.service: loki-init
     logging: *default-logging
-    environment:
-      DATA_SOURCE_URI: "postgres:5432/postgres?sslmode=disable"
-      DATA_SOURCE_USER: monitoring
-      DATA_SOURCE_PASS_FILE: /run/secrets/monitoring_db_password
-    secrets:
-      - monitoring_db_password
-    depends_on:
-      postgres:
-        condition: service_healthy
-    # No ports: only Prometheus reaches it, over the Docker network (9187)
+    command: [ "chown", "-R", "10001:10001", "/loki" ]
+    volumes:
+      - loki-data:/loki
+    restart: "no"
 
-  opensearch-exporter:
-    image: quay.io/prometheuscommunity/elasticsearch-exporter:v1.11.0   # check for a newer patch
-    container_name: kreds-opensearch-exporter
+  loki:
+    image: grafana/loki:3.6.0   # newest stable 3.x.y – check before committing
+    container_name: kreds-loki
+    labels:
+      kreds.service: loki
     logging: *default-logging
-    command:
-      - --es.uri=http://opensearch:9200
-      - --es.indices          # documents and size per index (places, statistics)
+    command: [ "-config.file=/etc/loki/loki.yml" ]
+    volumes:
+      - ./monitoring/loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    user: "10001:10001"
     depends_on:
-      opensearch:
-        condition: service_healthy
-    # No ports: only Prometheus reaches it, over the Docker network (9114)
+      loki-init:
+        condition: service_completed_successfully
+    # No ports: Loki has no login of its own (ADR-0004). Only Grafana and Fluent Bit reach it.
+
+  fluent-bit:
+    image: fluent/fluent-bit:5.2.0
+    container_name: kreds-fluent-bit
+    logging: *default-logging        # no kreds.service label → its own logs are never shipped (no loop)
+    # Needs root to read Docker's log files. Mitigation: read-only mount, no ports, no other host access.
+    user: "0:0"
+    entrypoint: [ "/fluent-bit/bin/fluent-bit" ]
+    command: [ "-c", "/fluent-bit/etc/fluent-bit.yaml" ]
+    environment:
+      KREDS_ENV: local               # becomes the env label; "server" later
+    volumes:
+      - ./monitoring/fluent-bit:/fluent-bit/etc:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - fluent-bit-state:/fluent-bit/state
+    depends_on:
+      loki:
+        condition: service_started
+    # No ports: Prometheus scrapes :2020 over the Docker network
 
 volumes:
   prometheus-data:
   grafana-data:
+  loki-data:
+  fluent-bit-state:
 
 secrets:
   # Created from .env at start-up; mounted read-only at /run/secrets/garage_metrics_token
