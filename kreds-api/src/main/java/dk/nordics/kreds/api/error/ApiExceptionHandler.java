@@ -33,6 +33,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                                                                        HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
         ResponseEntity<Object> response = super.handleExceptionInternal(exception, body, headers, statusCode, request);
         if (response != null && response.getBody() instanceof ProblemDetail problem) {
+            problem.setDetail(detailFor(statusCode));
             problem.setProperty("code", codeFor(statusCode));
             addCorrelationId(problem);
         }
@@ -59,6 +60,15 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     private static String codeFor(HttpStatusCode statusCode) {
         HttpStatus status = HttpStatus.resolve(statusCode.value());
         return status == null ? "error_" + statusCode.value() : status.name().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * A calm, generic text – Spring's own details can reveal internals (e.g. "No static resource …").
+     */
+    private static String detailFor(HttpStatusCode statusCode) {
+        return statusCode.is4xxClientError()
+                ? "The request could not be handled. Check the address and the data you sent."
+                : "Something went wrong on our side. Please try again later.";
     }
 
     private static void addCorrelationId(ProblemDetail problem) {

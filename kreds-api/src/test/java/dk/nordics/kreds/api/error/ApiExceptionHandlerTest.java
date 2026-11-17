@@ -86,6 +86,7 @@ class ApiExceptionHandlerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.code").value("not_found"))
-                .andExpect(jsonPath("$.correlationId").isNotEmpty());
+                .andExpect(jsonPath("$.correlationId").isNotEmpty())
+                .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("static resource"))));
     }
 }
