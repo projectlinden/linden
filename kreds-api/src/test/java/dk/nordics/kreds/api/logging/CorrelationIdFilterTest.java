@@ -89,4 +89,17 @@ class CorrelationIdFilterTest {
         assertThat(idDuringRequest.get()).as("set during the request").isNotNull();
         assertThat(MDC.get(CorrelationIdFilter.MDC_KEY)).as("after the request").isNull();
     }
+
+    @Test
+    @DisplayName("incoming id with forbidden characters (spaces, quotes, semicolons) → replaced by a new UUID")
+    void incomingIdWithForbiddenCharacters_isReplaced() throws Exception {
+        String suspicious = "id with \"quotes\"; and spaces";
+        request.addHeader(CorrelationIdFilter.HEADER, suspicious);
+
+        filter.doFilter(request, response, chain);
+
+        String header = response.getHeader(CorrelationIdFilter.HEADER);
+        assertThat(header).isNotEqualTo(suspicious);
+        assertThatCode(() -> UUID.fromString(header)).as("replacement is a UUID").doesNotThrowAnyException();
+    }
 }
