@@ -10,13 +10,13 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = "logging.structured.format.console=logstash")
 @ExtendWith(OutputCaptureExtension.class)
 class StructuredLoggingIT {
 
-    static final Logger logger = LoggerFactory.getLogger(StructuredLoggingIT.class);
+    private static final Logger logger = LoggerFactory.getLogger(StructuredLoggingIT.class);
 
     @Test
     void jsonLogLine_containsLevelMessageAndTimestamp(CapturedOutput output) {
@@ -33,9 +33,9 @@ class StructuredLoggingIT {
                 .orElseThrow(() -> new AssertionError("no log line with: " + message));
         JsonNode node = new ObjectMapper().readTree(line);
 
-        assertThat(node.get("level").asString()).isEqualTo("INFO");
-        assertThat(node.get("message").asString()).isEqualTo(message);
-        assertThat(node.get("@timestamp")).isNotNull();
+        assertThat(node.path("level").asString()).isEqualTo("INFO");
+        assertThat(node.path("message").asString()).isEqualTo(message);
+        assertThat(node.path("@timestamp")).isNotNull();
     }
 
 }
