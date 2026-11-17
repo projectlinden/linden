@@ -8,11 +8,9 @@ import org.slf4j.MDC;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
  * Unit tests for {@link CorrelationIdFilter} – no Spring context, just a simulated request.
@@ -22,12 +20,16 @@ class CorrelationIdFilterTest {
     private final CorrelationIdFilter filter = new CorrelationIdFilter();
     private final MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/me");
     private final MockHttpServletResponse response = new MockHttpServletResponse();
+    /**
+     * 8-4-4-4-12 hexadecimal digits, as produced by UUID.randomUUID().
+     */
+    private static final String UUID_FORMAT = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
     /**
      * What the MDC contained while the request was running inside the filter chain.
      */
     private final AtomicReference<String> idDuringRequest = new AtomicReference<>();
-    private final FilterChain chain = (req, res) -> idDuringRequest.set(MDC.get(CorrelationIdFilter.MDC_KEY));
+    private final FilterChain chain = (_, _) -> idDuringRequest.set(MDC.get(CorrelationIdFilter.MDC_KEY));
 
     @AfterEach
     void clearMdc() {
@@ -42,7 +44,7 @@ class CorrelationIdFilterTest {
 
         String header = response.getHeader(CorrelationIdFilter.HEADER);
         assertThat(header).as("X-Correlation-Id header").isNotBlank();
-        assertThatCode(() -> UUID.fromString(header)).as("header is a UUID").doesNotThrowAnyException();
+        assertThat(header).as("header is a UUID").matches(UUID_FORMAT);
         assertThat(idDuringRequest.get()).as("MDC during the request").isEqualTo(header);
     }
 
@@ -67,7 +69,7 @@ class CorrelationIdFilterTest {
 
         String header = response.getHeader(CorrelationIdFilter.HEADER);
         assertThat(header).isNotEqualTo(forged);
-        assertThatCode(() -> UUID.fromString(header)).as("replacement is a UUID").doesNotThrowAnyException();
+        assertThat(header).as("header is a UUID").matches(UUID_FORMAT);
         assertThat(idDuringRequest.get()).isEqualTo(header);
     }
 
@@ -100,6 +102,6 @@ class CorrelationIdFilterTest {
 
         String header = response.getHeader(CorrelationIdFilter.HEADER);
         assertThat(header).isNotEqualTo(suspicious);
-        assertThatCode(() -> UUID.fromString(header)).as("replacement is a UUID").doesNotThrowAnyException();
+        assertThat(header).as("header is a UUID").matches(UUID_FORMAT);
     }
 }

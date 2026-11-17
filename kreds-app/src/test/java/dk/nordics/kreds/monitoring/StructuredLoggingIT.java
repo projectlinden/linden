@@ -35,7 +35,7 @@ class StructuredLoggingIT {
 
         assertThat(node.path("level").asString()).isEqualTo("INFO");
         assertThat(node.path("message").asString()).isEqualTo(message);
-        assertThat(node.path("@timestamp")).isNotNull();
+        assertThat(node.has("@timestamp")).as("@timestamp field").isTrue();
     }
 
 }
