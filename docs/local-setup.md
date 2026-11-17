@@ -74,10 +74,53 @@ Check that the realm is up:
 
 ## Try the API with a real token
 
-Until `kreds-web` exists, you can log in by hand with Authorization Code + PKCE.
+The API only accepts a **Bearer token** from Keycloak (realm `kreds`). Until `kreds-web` exists, you get one with
+**Authorization Code + PKCE** – the same login flow the PWA will use. Bruno does the whole flow for you.
 
-1. Create a test user in realm `kreds`.
-2. Create a PKCE pair and open the printed URL:
+> **Always use `localhost`, never `127.0.0.1`, in the Keycloak URLs.** The token contains the address it was issued
+> by (`iss`), and Spring Boot only accepts `http://localhost:8180/realms/kreds` (`KREDS_AUTH_ISSUER_URI`). A token from
+> `127.0.0.1:8180` is rejected with `401`.
+
+### 1. Create a test user (once)
+
+1. Open the admin console: `http://localhost:8180/admin` – log in with `KEYCLOAK_ADMIN_USER` /
+   `KEYCLOAK_ADMIN_PASSWORD` from `.env`.
+2. Switch to the realm **kreds** (drop-down top left – not `master`).
+3. **Users → Create new user:** username e.g. `anna`, email `anna@example.com`, *Email verified* on → **Create**.
+4. Tab **Credentials → Set password:** a test password, *Temporary* **off** → **Save**.
+
+Use made-up test users only – never a real person's email.
+
+### 2. Get a token in Bruno (recommended)
+
+Set the auth **once on the collection**, so every request inherits it:
+
+1. Collection settings → **Auth** → mode **OAuth 2.0**.
+2. Fill in:
+
+   | Field              | Value                                                               |
+      |--------------------|---------------------------------------------------------------------|
+   | Grant type         | Authorization Code                                                  |
+   | Callback URL       | `http://localhost:5173/`                                            |
+   | Authorization URL  | `http://localhost:8180/realms/kreds/protocol/openid-connect/auth`   |
+   | Access Token URL   | `http://localhost:8180/realms/kreds/protocol/openid-connect/token`  |
+   | Client ID          | `kreds-web`                                                         |
+   | Client Secret      | *(empty – `kreds-web` is a public client)*                          |
+   | Scope              | `openid`                                                            |
+   | Use PKCE           | **on**                                                              |
+
+3. Click **Get Access Token**. Bruno opens a login window – log in as your test user. Bruno catches the redirect to
+   `localhost:5173` itself (nothing needs to run there) and stores the token.
+4. In each request: **Auth → Inherit**. Bruno sends `Authorization: Bearer <token>`.
+
+The access token is valid for a few minutes; Bruno renews it with the refresh token, or you click
+**Get Access Token** again.
+
+**Check:** `GET http://localhost:8080/api/v1/me` → `200` with `{"userId":"…"}` (the user's ID in Keycloak).
+
+### 3. Without Bruno (curl)
+
+1. Create a PKCE pair and open the printed URL in the browser:
 
    ```bash
    CODE_VERIFIER=$(openssl rand -base64 48 | tr -d '=+/\n' | cut -c1-64)
@@ -85,9 +128,9 @@ Until `kreds-web` exists, you can log in by hand with Authorization Code + PKCE.
    echo "http://localhost:8180/realms/kreds/protocol/openid-connect/auth?client_id=kreds-web&response_type=code&scope=openid&redirect_uri=http://localhost:5173/&code_challenge=$CODE_CHALLENGE&code_challenge_method=S256"
    ```
 
-3. Log in. The browser fails to open `localhost:5173` (expected) – copy the `code` from the address bar.
-   The code is valid for about one minute.
-4. Exchange the code and call the API:
+2. Log in. The browser then fails to open `localhost:5173` – expected. Copy the value of `code` from the address bar
+   (between `code=` and the next `&`). It is valid for about one minute.
+3. Exchange the code for a token and call the API:
 
    ```bash
    CODE='paste-the-code-here'
@@ -97,6 +140,14 @@ Until `kreds-web` exists, you can log in by hand with Authorization Code + PKCE.
    curl -i -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/me
    ```
 
-   Expected: `200` with `{"userId":"…"}` – the user's ID in Keycloak.
+### When it does not work
+
+| Symptom                                                 | Cause                                                                                   |
+|---------------------------------------------------------|-----------------------------------------------------------------------------------------|
+| `401` although a token was sent                         | Token from `127.0.0.1` instead of `localhost` (wrong `iss`), or expired – get a new one |
+| `401` and no `Authorization` header in Bruno's Timeline | The request's Auth is not set to *Inherit*                                              |
+| Keycloak: *Invalid parameter: redirect_uri*             | Callback URL is not exactly `http://localhost:5173/`                                    |
+| Keycloak: *Client not found*                            | Realm `master` instead of `kreds` in the URLs                                           |
+| `invalid_grant` (curl)                                  | The code expired or was used twice – log in again                                       |
 
 Never paste tokens into online JWT decoders – a token is a key to the account.
