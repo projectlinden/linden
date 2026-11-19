@@ -143,6 +143,29 @@ explicitly allowed in `.gitignore` (`*.log` is ignored otherwise).
 **Adding a service to the logs:** label it (`kreds.service`), look at its real output, extend `redact.lua` and
 `samples.log` if needed, run the test, then add it to the allow list.
 
+## App logs (Spring Boot)
+
+What the Kreds app itself writes – ready for Loki, shipped once the app runs as a container.
+
+- **Format:** readable text in the IDE. **JSON** (Logstash layout, one object per line) when
+  `LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash` is set – in containers and on the server. The top-level `level` field
+  becomes Loki's `detected_level`. `StructuredLoggingIT` fixes this contract (`level`, `message`, `@timestamp`).
+- **Correlation ID:** `CorrelationIdFilter` gives every request an ID – in every log line of that request
+  (`correlationId`), in the response header `X-Correlation-Id`, and in error bodies. A client may send its own ID
+  (letters, digits, hyphens, 8–64 characters); anything else is replaced, so nobody can forge log lines.
+  Find a request in Grafana: `{service="kreds-app"} | json | correlationId="<id>"`.
+- **Errors:** `ApiExceptionHandler` turns every error into **Problem Details** (`application/problem+json`) with a
+  stable `code` (`not_found`, `internal_error`, …), the `correlationId` and a calm, generic `detail`. The real cause
+  of an unexpected error goes only into the log (`ERROR`, with stack trace, same `correlationId`). Spring Security's
+  `401`/`403` have no body yet, but carry the header.
+- **Levels:** `INFO` by default for everything (`application.properties`, proven by `LogLevelsIT`).
+  `DEBUG` only on purpose, for one package, through an environment variable and a restart:
+  `LOGGING_LEVEL_DK_NORDICS_KREDS=DEBUG` (proven by `DebugOverrideIT`). **Never `TRACE` on a server** – DEBUG and
+  TRACE are where request details end up.
+- **Privacy:** never log content, keys, tokens, passwords or email addresses – at any level. Stack traces can
+  contain library messages with values (e.g. SQL); `redact.lua` replaces every email address in every service as
+  the last line of defence once `kreds-app` is on the Fluent Bit allow list.
+
 ## Secrets and roles
 
 | Variable (`.env`)        | Used by                                                                           | Rights                                                                                          |
@@ -243,3 +266,5 @@ in a request file. A failing targets check names the job, its URL and Prometheus
 - Postgres on its own server → TLS (`sslmode=verify-full`) for the exporter.
 - Prometheus, exporters, Fluent Bit and Loki stay on the internal network; only Grafana gets a login.
 - `KREDS_ENV=server` for Fluent Bit, so server logs are labelled `env="server"`.
+- The app runs as a container with `LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash`; `kreds-app` joins the Fluent Bit
+  allow list, and Fluent Bit drops app `DEBUG`/`TRACE` lines when `KREDS_ENV` is not `local`.

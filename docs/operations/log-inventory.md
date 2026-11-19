@@ -15,14 +15,14 @@ All containers use the `json-file` log driver with rotation (`x-logging` in `doc
 
 ## Overview
 
-| Service                   | Format                                     | Personal data found                                                                  | Risk     | What the collector must do                                                                                  |
-|---------------------------|--------------------------------------------|--------------------------------------------------------------------------------------|----------|-------------------------------------------------------------------------------------------------------------|
-| Keycloak                  | Plain text, events as `key="value"` pairs  | `username`, `ipAddress`, `code_id` in login events                                   | **High** | Parse the event fields, drop `username`, `ipAddress`, `code_id`; keep `type`, `error`, `userId`, `clientId` |
-| Postgres                  | Plain text                                 | Full SQL statement on error, including literal values (an email address in the test) | **High** | Drop `STATEMENT:` and `DETAIL:` lines                                                                       |
-| OpenSearch                | Plain text                                 | None found                                                                           | Low      | Pass through                                                                                                |
-| OpenSearch Dashboards     | –                                          | None found                                                                           | Low      | Pass through                                                                                                |
-| Garage                    | Plain text                                 | None found (object paths may appear on errors)                                       | Medium   | Watch for bucket and object paths, drop them if they appear                                                 |
-| Spring Boot (`kreds-app`) | Plain text console, no request logging yet | None yet                                                                             | –        | Comes later: JSON logs with a correlation ID; checked by a test in the app                                  |
+| Service                   | Format                                                                                                  | Personal data found                                                                  | Risk     | What the collector must do                                                                                                |
+|---------------------------|---------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|----------|---------------------------------------------------------------------------------------------------------------------------|
+| Keycloak                  | Plain text, events as `key="value"` pairs                                                               | `username`, `ipAddress`, `code_id` in login events                                   | **High** | Parse the event fields, drop `username`, `ipAddress`, `code_id`; keep `type`, `error`, `userId`, `clientId`               |
+| Postgres                  | Plain text                                                                                              | Full SQL statement on error, including literal values (an email address in the test) | **High** | Drop `STATEMENT:` and `DETAIL:` lines                                                                                     |
+| OpenSearch                | Plain text                                                                                              | None found                                                                           | Low      | Pass through                                                                                                              |
+| OpenSearch Dashboards     | –                                                                                                       | None found                                                                           | Low      | Pass through                                                                                                              |
+| Garage                    | Plain text                                                                                              | None found (object paths may appear on errors)                                       | Medium   | Watch for bucket and object paths, drop them if they appear                                                               |
+| Spring Boot (`kreds-app`) | Text in the IDE; JSON (Logstash) with `correlationId` when `LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash` | None by design – but stack traces can carry library messages with values             | Medium   | Not shipped yet (runs outside Docker). When it is: allow list + `redact.lua` email rule; drop DEBUG/TRACE outside `local` |
 
 ## Findings
 
@@ -76,4 +76,5 @@ No email addresses or names found in normal operation.
 - Keycloak can write JSON logs itself (`KC_LOG_CONSOLE_OUTPUT=json`) – easier and safer to filter than parsing text.
 - Postgres: decide whether `log_min_error_statement` is raised on the server so statements are never written at all.
 - IP addresses in the security audit log: needed for "login from a new place"? Decide with the audit design.
-- Spring Boot: JSON logs, correlation ID, and a test that no log line contains an email address.
+- Spring Boot: JSON logs and correlation ID are done (`StructuredLoggingIT`, `CorrelationIdFilterTest`); shipping the
+  app's logs waits for the app container.
