@@ -18,7 +18,8 @@
 
     <!-- Project Information   -->
     <name>Kreds</name>
-    <description>A calm, private, end-to-end encrypted social app for family and friends. Made in the Nordics.</description>
+    <description>A calm, private, end-to-end encrypted social app for family and friends. Made in the Nordics.
+    </description>
 
     <!-- Project Developer/s -->
     <developers>
@@ -67,6 +68,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <!-- Each IT class gets its own JVM. Spring Boot sets up logging only once per JVM, so a test with
+                         its own logging settings (StructuredLoggingIT) would otherwise inherit an earlier test's format. -->
+                    <reuseForks>false</reuseForks>
+                </configuration>
             </plugin>
 
             <!--   Mockito -> setting up instrumentation for inline mocking (Java 21+)  -->
