@@ -12,7 +12,7 @@
     "to": "now"
   },
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "editable": false,
   "graphTooltip": 1,
   "panels": [
@@ -103,7 +103,7 @@
       "gridPos": {
         "x": 0,
         "y": 4,
-        "w": 8,
+        "w": 24,
         "h": 4
       },
       "targets": [
@@ -150,140 +150,6 @@
               }
             }
           ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 3,
-      "type": "stat",
-      "title": "OpenSearch",
-      "description": "Red = a primary shard is unassigned, someone must act. Yellow is normal on one node.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 8,
-        "y": 4,
-        "w": 8,
-        "h": 4
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "max(elasticsearch_cluster_health_status{color=\"red\"})",
-          "legendFormat": "red",
-          "instant": true
-        }
-      ],
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "value",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "Not red",
-                  "color": "green",
-                  "index": 0
-                },
-                "1": {
-                  "text": "RED",
-                  "color": "red",
-                  "index": 1
-                }
-              }
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 4,
-      "type": "stat",
-      "title": "OpenSearch nodes",
-      "description": "Number of OpenSearch nodes the exporter sees.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 16,
-        "y": 4,
-        "w": 8,
-        "h": 4
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "elasticsearch_cluster_health_number_of_nodes",
-          "legendFormat": "nodes",
-          "instant": true
-        }
-      ],
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "textMode": "value",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [

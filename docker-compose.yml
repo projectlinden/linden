@@ -73,47 +73,6 @@ services:
       retries: 12
       start_period: 30s
 
-  opensearch:
-    image: opensearchproject/opensearch:${OPENSEARCH_VERSION}
-    container_name: kreds-opensearch
-    labels:
-      kreds.service: opensearch
-    logging: *default-logging
-    environment:
-      - cluster.name=kreds-cluster
-      - node.name=kreds-node-1
-      - discovery.type=single-node
-      - DISABLE_SECURITY_PLUGIN=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-    ports:
-      - "127.0.0.1:9200:9200"
-    volumes:
-      - opensearch-data:/usr/share/opensearch/data
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-
-  dashboards:
-    image: opensearchproject/opensearch-dashboards:${OPENSEARCH_VERSION}
-    container_name: kreds-dashboards
-    labels:
-      kreds.service: dashboards
-    logging: *default-logging
-    environment:
-      - OPENSEARCH_HOSTS=["http://opensearch:9200"]
-      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
-    ports:
-      - "127.0.0.1:5601:5601"
-    depends_on:
-      opensearch:
-        condition: service_healthy
-
   garage:
     image: dxflrs/garage:v2.5.0
     container_name: kreds-garage
@@ -134,6 +93,5 @@ services:
 
 volumes:
   postgres-data:
-  opensearch-data:
   garage-meta:
   garage-data:

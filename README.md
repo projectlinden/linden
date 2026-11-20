@@ -11,7 +11,7 @@ a Nordic alternative to Instagram, Facebook, Snapchat and WhatsApp. No ads, no s
 
 ## Stack
 
-Java 25 · Spring Boot 4 · Postgres · OpenSearch · Keycloak · RabbitMQ · S3 (Garage locally) · React PWA
+Java 25 · Spring Boot 4 · Postgres · Keycloak · RabbitMQ · S3 (Garage locally) · React PWA
 
 ## Getting started
 
@@ -19,15 +19,13 @@ Requires Java 25, Docker and Docker Compose.
 
 ```
 cp .env.example .env          # then change the passwords in .env
-docker compose up -d          # Postgres, Keycloak, OpenSearch, Dashboards, Garage.
+docker compose up -d          # Postgres, Keycloak, Garage.
 ./mvnw verify                 # build all modules and run all tests
 ```
 
 | Service               | Address                     |
 |-----------------------|-----------------------------|
 | Postgres              | `localhost:5432`            |
-| OpenSearch            | http://localhost:9200       |
-| OpenSearch Dashboards | http://localhost:5601       |
 | Garage (S3)           | http://localhost:3900       |
 | Keycloak (admin)      | http://localhost:8180/admin |
 
