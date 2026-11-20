@@ -11,13 +11,13 @@
     </parent>
 
     <!-- Module Information -->
-    <groupId>dk.nordics</groupId>
-    <artifactId>kreds</artifactId>
+    <groupId>nu.stamly</groupId>
+    <artifactId>stamly</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <!-- Project Information   -->
-    <name>Kreds</name>
+    <name>Stamly</name>
     <description>A calm, private, end-to-end encrypted social app for family and friends. Made in the Nordics.
     </description>
 
@@ -38,9 +38,9 @@
 
     <!-- Project Modules -->
     <modules>
-        <module>kreds-core</module>
-        <module>kreds-api</module>
-        <module>kreds-app</module>
+        <module>stamly-core</module>
+        <module>stamly-api</module>
+        <module>stamly-app</module>
     </modules>
 
     <!-- Project Dependencies -->
@@ -48,13 +48,13 @@
 
         <dependencies>
             <dependency>
-                <groupId>dk.nordics</groupId>
-                <artifactId>kreds-core</artifactId>
+                <groupId>nu.stamly</groupId>
+                <artifactId>stamly-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>dk.nordics</groupId>
-                <artifactId>kreds-api</artifactId>
+                <groupId>nu.stamly</groupId>
+                <artifactId>stamly-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

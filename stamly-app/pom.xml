@@ -4,20 +4,20 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>dk.nordics</groupId>
-        <artifactId>kreds</artifactId>
+        <groupId>nu.stamly</groupId>
+        <artifactId>stamly</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kreds-app</artifactId>
-    <name>Kreds App</name>
+    <artifactId>stamly-app</artifactId>
+    <name>Stamly App</name>
     <description>Main class, configuration, starts everything</description>
 
     <dependencies>
 
         <dependency>
-            <groupId>dk.nordics</groupId>
-            <artifactId>kreds-api</artifactId>
+            <groupId>nu.stamly</groupId>
+            <artifactId>stamly-api</artifactId>
         </dependency>
         <!-- Health and metrics for monitoring (ADR-0003) -->
         <dependency>

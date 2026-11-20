@@ -4,20 +4,20 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>dk.nordics</groupId>
-        <artifactId>kreds</artifactId>
+        <groupId>nu.stamly</groupId>
+        <artifactId>stamly</artifactId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kreds-api</artifactId>
-    <name>Kreds Api</name>
+    <artifactId>stamly-api</artifactId>
+    <name>Stamly Api</name>
     <description>REST and WebSocket endpoints</description>
 
     <dependencies>
 
         <dependency>
-            <groupId>dk.nordics</groupId>
-            <artifactId>kreds-core</artifactId>
+            <groupId>nu.stamly</groupId>
+            <artifactId>stamly-core</artifactId>
         </dependency>
         <!-- REST endpoints (Spring MVC) -->
         <dependency>
