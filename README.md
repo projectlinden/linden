@@ -1,4 +1,4 @@
-# Kreds
+# Stamly
 
 ![Build](https://github.com/tysker/kreds/actions/workflows/build.yml/badge.svg)
 
@@ -23,11 +23,11 @@ docker compose up -d          # Postgres, Keycloak, Garage.
 ./mvnw verify                 # build all modules and run all tests
 ```
 
-| Service               | Address                     |
-|-----------------------|-----------------------------|
-| Postgres              | `localhost:5432`            |
-| Garage (S3)           | http://localhost:3900       |
-| Keycloak (admin)      | http://localhost:8180/admin |
+| Service          | Address                     |
+|------------------|-----------------------------|
+| Postgres         | `localhost:5432`            |
+| Garage (S3)      | http://localhost:3900       |
+| Keycloak (admin) | http://localhost:8180/admin |
 
 First start? See [docs/local-setup.md](docs/local-setup.md)
 

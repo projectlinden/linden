@@ -4,12 +4,12 @@
 set -euo pipefail
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
-    -v kreds_password="$KREDS_DB_PASSWORD" \
+    -v stamly_password="$STAMLY_DB_PASSWORD" \
     -v keycloak_password="$KEYCLOAK_DB_PASSWORD" <<'SQL'
 -- Kreds (Spring Boot + Flyway)
-CREATE ROLE kreds LOGIN PASSWORD :'kreds_password';
-CREATE DATABASE kreds OWNER kreds;
-REVOKE ALL ON DATABASE kreds FROM PUBLIC;
+CREATE ROLE stamly LOGIN PASSWORD :'stamly_password';
+CREATE DATABASE stamly OWNER stamly;
+REVOKE ALL ON DATABASE stamly FROM PUBLIC;
 
 -- Keycloak (manages its own schema)
 CREATE ROLE keycloak LOGIN PASSWORD :'keycloak_password';

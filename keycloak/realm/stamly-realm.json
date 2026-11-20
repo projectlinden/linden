@@ -1,6 +1,6 @@
 {
-  "realm": "kreds",
-  "displayName": "Kreds",
+  "realm": "stamly",
+  "displayName": "Stamly",
   "enabled": true,
   "sslRequired": "external",
   "registrationAllowed": false,
@@ -16,8 +16,8 @@
   "ssoSessionMaxLifespan": 36000,
   "clients": [
     {
-      "clientId": "kreds-web",
-      "name": "Kreds web app",
+      "clientId": "stamly-web",
+      "name": "Stamly web app",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": true,
@@ -37,11 +37,11 @@
       },
       "protocolMappers": [
         {
-          "name": "audience-kreds-api",
+          "name": "audience-stamly-api",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
           "config": {
-            "included.custom.audience": "kreds-api",
+            "included.custom.audience": "stamly-api",
             "access.token.claim": "true",
             "id.token.claim": "false"
           }
