@@ -1,9 +1,9 @@
 {
-  "uid": "kreds-logs",
-  "title": "Kreds – logs",
-  "description": "The filtered logs of all Kreds services (ADR-0004). No personal data – Fluent Bit removes it before storing.",
+  "uid": "stamly-logs",
+  "title": "Stamly – logs",
+  "description": "The filtered logs of all Stamly services (ADR-0004). No personal data – Fluent Bit removes it before storing.",
   "tags": [
-    "kreds"
+    "stamly"
   ],
   "timezone": "browser",
   "refresh": "1m",
@@ -19,9 +19,9 @@
     {
       "title": "Is it OK?",
       "type": "link",
-      "url": "/d/kreds-overview",
+      "url": "/d/stamly-overview",
       "icon": "dashboard",
-      "tooltip": "Kreds – is it OK?",
+      "tooltip": "Stamly – is it OK?",
       "targetBlank": false
     }
   ],

@@ -1,9 +1,9 @@
 # Encryption flow
 
-How Kreds encrypts a *snak* end to end with MLS (RFC 9420), using `@wireapp/core-crypto`
-behind our own `kreds-crypto` adapter.
+How Stamly encrypts a *snak* end to end with MLS (RFC 9420), using `@wireapp/core-crypto`
+behind our own `stamly-crypto` adapter.
 
-> **Status:** design. The `kreds-crypto` interface is not built yet. The method names below
+> **Status:** design. The `stamly-crypto` interface is not built yet. The method names below
 > (`init`, `createKeyPackage`, `createGroup`, `invite`, `join`, `encrypt`, `decrypt`) are a
 > proposal and may change during implementation.
 
@@ -14,16 +14,16 @@ behind our own `kreds-crypto` adapter.
 ```mermaid
 flowchart TB
     subgraph device["Browser (one per device)"]
-        web["kreds-web<br/>React UI, plain text"]
-        adapter["kreds-crypto<br/>our adapter, Kreds types only"]
+        web["stamly-web<br/>React UI, plain text"]
+        adapter["stamly-crypto<br/>our adapter, Stamly types only"]
         cc["@wireapp/core-crypto<br/>MLS engine (WASM)"]
         ks[("Keystore<br/>encrypted IndexedDB")]
-        web -- "Kreds calls + plain bytes" --> adapter
+        web -- "Stamly calls + plain bytes" --> adapter
         adapter -- "MLS calls" --> cc
         cc -- "keys + group state" --> ks
     end
 
-    server["Kreds server (Spring Boot)<br/>stores and relays bytes, cannot decrypt"]
+    server["Stamly server (Spring Boot)<br/>stores and relays bytes, cannot decrypt"]
 
     web -- "HTTPS / WebSocket:<br/>KeyPackages, ciphertext" --> server
     adapter -. "MlsTransport:<br/>Commit + Welcome" .-> server
@@ -31,13 +31,13 @@ flowchart TB
 
 | Layer | Knows about | Never does |
 |---|---|---|
-| `kreds-web` | Kreds words: snak, kreds, invitation | Import `@wireapp/core-crypto` |
-| `kreds-crypto` | Kreds types **and** core-crypto | Let `ClientId`, `ConversationId` or other library types leave the package |
+| `stamly-web` | Stamly words: snak, kreds, invitation | Import `@wireapp/core-crypto` |
+| `stamly-crypto` | Stamly types **and** core-crypto | Let `ClientId`, `ConversationId` or other library types leave the package |
 | `@wireapp/core-crypto` | MLS: keys, epochs, encryption, padding, key wiping | Talk to the network on its own (it hands outgoing messages to `MlsTransport`) |
 | Keystore | Private keys and group state, encrypted | Leave the device |
 | Server | Who is in which group, where to deliver bytes | See private keys or message content |
 
-The adapter is what makes the library replaceable: `kreds-web` only depends on the `kreds-crypto`
+The adapter is what makes the library replaceable: `stamly-web` only depends on the `stamly-crypto`
 interface, and one shared contract test suite runs against every adapter
 (see ADR-0001).
 
@@ -48,11 +48,11 @@ interface, and one shared contract test suite runs against every adapter
 ```mermaid
 sequenceDiagram
     autonumber
-    participant AW as Alice: kreds-web
-    participant AC as Alice: kreds-crypto + core-crypto
-    participant S as Kreds server
-    participant BC as Bob: kreds-crypto + core-crypto
-    participant BW as Bob: kreds-web
+    participant AW as Alice: stamly-web
+    participant AC as Alice: stamly-crypto + core-crypto
+    participant S as Stamly server
+    participant BC as Bob: stamly-crypto + core-crypto
+    participant BW as Bob: stamly-web
 
     Note over AW,AC: App start (same on every device)
     AW->>AC: init()
@@ -67,7 +67,7 @@ sequenceDiagram
     Note over AW,AC: Alice creates the group
     AW->>AC: createGroup()
     AC->>AC: new MLS conversation, epoch 0, saved in keystore
-    AC-->>AW: Kreds group id
+    AC-->>AW: Stamly group id
 
     Note over AW,S: Alice invites Bob
     AW->>S: request Bob's KeyPackage
@@ -83,11 +83,11 @@ sequenceDiagram
     S-->>BW: Welcome (only to Bob)
     BW->>BC: join(welcome)
     BC->>BC: open Welcome with KeyPackage private key, save group state
-    BC-->>BW: Kreds group id
+    BC-->>BW: Stamly group id
 ```
 
 Why the server checks invitations: **anyone holding a user's KeyPackage can add that user to a
-group** – MLS itself does not ask. Kreds therefore controls who may invite whom (only members
+group** – MLS itself does not ask. Stamly therefore controls who may invite whom (only members
 of a shared kreds) and adds an explicit "accept invitation" step.
 
 ---
@@ -97,11 +97,11 @@ of a shared kreds) and adds an explicit "accept invitation" step.
 ```mermaid
 sequenceDiagram
     autonumber
-    participant AW as Alice: kreds-web
-    participant AC as Alice: kreds-crypto + core-crypto
-    participant S as Kreds server
-    participant BC as Bob: kreds-crypto + core-crypto
-    participant BW as Bob: kreds-web
+    participant AW as Alice: stamly-web
+    participant AC as Alice: stamly-crypto + core-crypto
+    participant S as Stamly server
+    participant BC as Bob: stamly-crypto + core-crypto
+    participant BW as Bob: stamly-web
 
     AW->>AC: encrypt(groupId, "Hej Bob" as bytes)
     AC->>AC: encrypt with epoch key, pad, wipe used key
@@ -114,7 +114,7 @@ sequenceDiagram
         BC-->>BW: "Hej Bob" as bytes
         BW->>BW: show the snak
     else tampered or from another group
-        BC-->>BW: MessageRejected (Kreds error, no library details)
+        BC-->>BW: MessageRejected (Stamly error, no library details)
         BW->>BW: show a calm error, log without content
     end
 ```
@@ -139,7 +139,7 @@ content is always encrypted. Padding makes message sizes reveal less.
 
 ## 5. Rules
 
-- Only `kreds-crypto` imports `@wireapp/core-crypto`. Library types never leave the package.
+- Only `stamly-crypto` imports `@wireapp/core-crypto`. Library types never leave the package.
 - Versions of `@wireapp/core-crypto` are pinned exactly and updated one major version at a time,
   in their own step.
 - Errors from core-crypto are mapped to our own errors (e.g. `MessageRejected`). Logs never
@@ -149,5 +149,5 @@ content is always encrypted. Padding makes message sizes reveal less.
 
 ## Related
 
-- ADR-0001 – `@wireapp/core-crypto` as the MLS library, behind a `kreds-crypto` adapter
+- ADR-0001 – `@wireapp/core-crypto` as the MLS library, behind a `stamly-crypto` adapter
 - [RFC 9420 – The Messaging Layer Security (MLS) Protocol](https://www.rfc-editor.org/rfc/rfc9420)

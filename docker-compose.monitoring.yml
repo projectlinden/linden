@@ -1,7 +1,7 @@
-# Monitoring for Kreds (ADR-0003, ADR-0004). Same project as docker-compose.yml, so it shares its network.
+# Monitoring for Stamly (ADR-0003, ADR-0004). Same project as docker-compose.yml, so it shares its network.
 # Start everything:  docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
-# Kreds only:        docker compose up -d
-name: kreds
+# Stamly only:        docker compose up -d
+name: stamly
 
 # YAML anchors only work inside one file, so the log settings are repeated here.
 x-logging: &default-logging
@@ -9,7 +9,7 @@ x-logging: &default-logging
   options:
     max-size: "10m"
     max-file: "3"
-    labels: "kreds.service"
+    labels: "stamly.service"
 
 services:
   prometheus:
@@ -122,7 +122,7 @@ services:
   fluent-bit:
     image: fluent/fluent-bit:5.2.0
     container_name: stamly-fluent-bit
-    logging: *default-logging        # no kreds.service label → its own logs are never shipped (no loop)
+    logging: *default-logging        # no stamly.service label → its own logs are never shipped (no loop)
     # Needs root to read Docker's log files. Mitigation: read-only mount, no ports, no other host access.
     user: "0:0"
     entrypoint: [ "/fluent-bit/bin/fluent-bit" ]

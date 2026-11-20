@@ -1,6 +1,6 @@
 # Log inventory
 
-What each Kreds service writes to its log today, and where personal data can slip in.
+What each Stamly service writes to its log today, and where personal data can slip in.
 This is the input for the log collector's filter rules and for the "no personal data in logs" test.
 
 **The rule (ENGINEERING.md § 2):** logs never contain content, keys, tokens, passwords or email addresses.
@@ -20,7 +20,7 @@ All containers use the `json-file` log driver with rotation (`x-logging` in `doc
 | Keycloak                  | Plain text, events as `key="value"` pairs                                                               | `username`, `ipAddress`, `code_id` in login events                                   | **High** | Parse the event fields, drop `username`, `ipAddress`, `code_id`; keep `type`, `error`, `userId`, `clientId`               |
 | Postgres                  | Plain text                                                                                              | Full SQL statement on error, including literal values (an email address in the test) | **High** | Drop `STATEMENT:` and `DETAIL:` lines                                                                                     |
 | Garage                    | Plain text                                                                                              | None found (object paths may appear on errors)                                       | Medium   | Watch for bucket and object paths, drop them if they appear                                                               |
-| Spring Boot (`kreds-app`) | Text in the IDE; JSON (Logstash) with `correlationId` when `LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash` | None by design – but stack traces can carry library messages with values             | Medium   | Not shipped yet (runs outside Docker). When it is: allow list + `redact.lua` email rule; drop DEBUG/TRACE outside `local` |
+| Spring Boot (`stamly-app`) | Text in the IDE; JSON (Logstash) with `correlationId` when `LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash` | None by design – but stack traces can carry library messages with values             | Medium   | Not shipped yet (runs outside Docker). When it is: allow list + `redact.lua` email rule; drop DEBUG/TRACE outside `local` |
 
 ## Findings
 
@@ -29,7 +29,7 @@ All containers use the `json-file` log driver with rotation (`x-logging` in `doc
 A failed login writes a `WARN` line from `org.keycloak.events`:
 
 ```
-WARN [org.keycloak.events] type="LOGIN_ERROR", realmName="kreds", clientId="account-console",
+WARN [org.keycloak.events] type="LOGIN_ERROR", realmName="stamly", clientId="account-console",
 userId="<uuid>", ipAddress="172.19.0.1", error="invalid_user_credentials", code_id="<id>", username="<username>"
 ```
 

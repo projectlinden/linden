@@ -6,7 +6,7 @@ set -euo pipefail
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres \
     -v stamly_password="$STAMLY_DB_PASSWORD" \
     -v keycloak_password="$KEYCLOAK_DB_PASSWORD" <<'SQL'
--- Kreds (Spring Boot + Flyway)
+-- Stamly (Spring Boot + Flyway)
 CREATE ROLE stamly LOGIN PASSWORD :'stamly_password';
 CREATE DATABASE stamly OWNER stamly;
 REVOKE ALL ON DATABASE stamly FROM PUBLIC;

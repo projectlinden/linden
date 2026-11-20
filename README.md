@@ -1,11 +1,12 @@
 # Stamly
 
-![Build](https://github.com/tysker/kreds/actions/workflows/build.yml/badge.svg)
+![Build](https://github.com/tysker/stamly/actions/workflows/build.yml/badge.svg)
 
 > A calm, private place for the people you actually know. Made in the Nordics.
 
-Kreds (Danish for *circle*) is a private, end-to-end encrypted social app for family and friends –
+Stamly is a private, end-to-end encrypted social app for family and friends –
 a Nordic alternative to Instagram, Facebook, Snapchat and WhatsApp. No ads, no strangers, no AI.
+Inside the app, a group of people is called a *kreds* (Danish for *circle*).
 
 **Status:** early prototype – Phase 2 (login with Keycloak). Family and friends only.
 
