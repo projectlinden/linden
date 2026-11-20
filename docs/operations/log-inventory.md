@@ -19,8 +19,6 @@ All containers use the `json-file` log driver with rotation (`x-logging` in `doc
 |---------------------------|---------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|----------|---------------------------------------------------------------------------------------------------------------------------|
 | Keycloak                  | Plain text, events as `key="value"` pairs                                                               | `username`, `ipAddress`, `code_id` in login events                                   | **High** | Parse the event fields, drop `username`, `ipAddress`, `code_id`; keep `type`, `error`, `userId`, `clientId`               |
 | Postgres                  | Plain text                                                                                              | Full SQL statement on error, including literal values (an email address in the test) | **High** | Drop `STATEMENT:` and `DETAIL:` lines                                                                                     |
-| OpenSearch                | Plain text                                                                                              | None found                                                                           | Low      | Pass through                                                                                                              |
-| OpenSearch Dashboards     | –                                                                                                       | None found                                                                           | Low      | Pass through                                                                                                              |
 | Garage                    | Plain text                                                                                              | None found (object paths may appear on errors)                                       | Medium   | Watch for bucket and object paths, drop them if they appear                                                               |
 | Spring Boot (`kreds-app`) | Text in the IDE; JSON (Logstash) with `correlationId` when `LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash` | None by design – but stack traces can carry library messages with values             | Medium   | Not shipped yet (runs outside Docker). When it is: allow list + `redact.lua` email rule; drop DEBUG/TRACE outside `local` |
 
@@ -67,9 +65,11 @@ statements typed by hand (psql, maintenance scripts) contain literal values, and
 the value into the `DETAIL:` line, even for the app – e.g. `DETAIL: Key (email)=(anna@example.com) already exists.`
 Therefore: `STATEMENT:` and `DETAIL:` lines are dropped.
 
-### OpenSearch, Dashboards, Garage
+### Garage
 
 No email addresses or names found in normal operation.
+
+OpenSearch and OpenSearch Dashboards were removed (ADR-0007); their findings (none) are in the Git history.
 
 ## Open points
 

@@ -15,7 +15,6 @@ flowchart LR
         kc["Keycloak<br/>:9000 /metrics"]
         garage["Garage<br/>:3903 /metrics (token)"]
         pgx["postgres-exporter<br/>:9187"] --> pg[("Postgres")]
-        osx["opensearch-exporter<br/>:9114"] --> os[("OpenSearch")]
         prom["Prometheus<br/>127.0.0.1:9090"]
         grafana["Grafana<br/>127.0.0.1:3000"]
         fb["Fluent Bit<br/>redact.lua"]
@@ -28,7 +27,6 @@ flowchart LR
     prom --> kc
     prom --> garage
     prom --> pgx
-    prom --> osx
 ```
 
 Prometheus **pulls** ("scrapes") every 30 seconds and keeps metrics for 15 days. Grafana reads from Prometheus and is
@@ -40,7 +38,6 @@ the only monitoring UI with a login.
 | `keycloak`   | `keycloak:9000/metrics`                         | Docker network only (management port is **never** published)                          | –                                                                        |
 | `garage`     | `garage:3903/metrics`                           | Docker network; admin port also on `127.0.0.1:3903`                                   | Bearer token `GARAGE_METRICS_TOKEN` (metrics only – not the admin token) |
 | `postgres`   | `postgres-exporter:9187`                        | Docker network only                                                                   | Exporter logs in as role `monitoring`                                    |
-| `opensearch` | `opensearch-exporter:9114`                      | Docker network only                                                                   | None yet (OpenSearch security is off locally)                            |
 | `kreds-app`  | `host.docker.internal:8081/actuator/prometheus` | Management port of the app, bound to `KREDS_MANAGEMENT_ADDRESS` (default `127.0.0.1`) | None – the port is never public                                          |
 | `loki`       | `loki:3100/metrics`                             | Docker network only                                                                   | –                                                                        |
 | `fluent-bit` | `fluent-bit:2020/api/v2/metrics/prometheus`     | Docker network only                                                                   | –                                                                        |
@@ -65,7 +62,7 @@ docker compose -f docker-compose.yml -f docker-compose.monitoring.yml restart pr
 ```
 
 > **Never use `docker compose down -v`** unless you want to wipe all data. `-v` deletes the volumes – Postgres,
-> OpenSearch, Garage (including its layout, bucket and keys) and Prometheus.
+> Garage (including its layout, bucket and keys), Prometheus, Grafana and Loki.
 
 Status page: `http://127.0.0.1:9090/targets` – every job must be **UP**.
 
@@ -87,7 +84,7 @@ Everything is **provisioned as code** from `monitoring/grafana/`:
 |-------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
 | `provisioning/datasources/prometheus.yml` | Data source `Prometheus` with the fixed uid `prometheus`; not editable in the UI                                                                  |
 | `provisioning/dashboards/kreds.yml`       | Loads every JSON file from `dashboards/` into the folder *Kreds*; UI changes cannot be saved                                                      |
-| `dashboards/kreds-overview.json`          | **"Kreds – is it OK?"** – services up, Postgres reachable, OpenSearch not red, logins per hour, app requests and errors, JVM heap, database sizes |
+| `dashboards/kreds-overview.json`          | **"Kreds – is it OK?"** – services up, Postgres reachable, logins per hour, app requests and errors, JVM heap, database sizes |
 | `dashboards/kreds-logs.json`              | **"Kreds – logs"** – dropdowns for service and level, log lines per service, errors and warnings, the log lines themselves                        |
 
 **Changing a dashboard:** edit it in the UI to try things out, then *Export → Export as JSON*, replace the file in
@@ -213,10 +210,8 @@ The data classification applies to metrics too ("when in doubt, encrypt"):
 
 1. **Labels never contain personal data** – no user IDs, *kreds* IDs, email addresses, IPs or paths. Keycloak's
    login events are labelled only by realm, client, event and error (`KC_EVENT_METRICS_USER_TAGS=realm,clientId`).
-2. **Index names never contain personal or *kreds*-specific data** (never `places-<circleId>`). They become label
-   values in Prometheus.
-3. **Spring metrics use URI templates** (`/api/v1/circles/{id}`), never real IDs, as tags.
-4. Bruno checks enforce rule 1 for Keycloak, Garage, Postgres and OpenSearch (allow-list of label names, no `@` in
+2. **Spring metrics use URI templates** (`/api/v1/circles/{id}`), never real IDs, as tags.
+3. Bruno checks enforce rule 1 for Keycloak, Garage and Postgres (allow-list of label names, no `@` in
    label values).
 
 ## Checks (Bruno)
@@ -234,8 +229,6 @@ in a request file. A failing targets check names the job, its URL and Prometheus
 | `GET :3903/metrics` (no token)                                        | Garage refuses metrics without the token (`401`/`403`)                                                               |
 | `query={job="garage"}`                                                | No `@` in any label value                                                                                            |
 | `query=pg_up`                                                         | The exporter can really log in to Postgres (`"1"`)                                                                   |
-| `query=elasticsearch_cluster_health_number_of_nodes`                  | The exporter really reaches OpenSearch                                                                               |
-| `query=elasticsearch_cluster_health_status`                           | Cluster is not red (picked by the `color` label, never by position)                                                  |
 | `GET :3000/api/health`                                                | Grafana runs and its database is OK                                                                                  |
 | `GET :3000/api/datasources/uid/prometheus/health` (Basic auth)        | Grafana itself can query Prometheus                                                                                  |
 | `GET :3000/api/datasources` (no auth)                                 | No anonymous access (`401`)                                                                                          |
@@ -252,8 +245,7 @@ in a request file. A failing targets check names the job, its URL and Prometheus
 - **Keycloak login counters appear only after the first login** since Keycloak started. Until then the query is
   empty – expected, not a bug.
 - **A target can be `up` while the service behind it is broken.** Exporters keep running when they cannot reach
-  their database. That is why `pg_up` and the OpenSearch metrics are checked separately.
-- **OpenSearch is yellow on a single node** when indices have replicas – normal locally. Red means act.
+  their database. That is why `pg_up` is checked separately.
 - **`busybox` tools in the Prometheus image** (`wget`, `nslookup`) can fail to resolve container names when the host
   has a search domain (e.g. `.home`). Prometheus itself is not affected – test through Prometheus or Bruno instead.
 - **`pg_monitor` can read the text of running queries** (`pg_stat_activity`). Accepted: the exporter does not export
@@ -262,7 +254,6 @@ in a request file. A failing targets check names the job, its URL and Prometheus
 
 ## Before any server
 
-- OpenSearch security on → the opensearch-exporter gets its own read-only monitoring user.
 - Postgres on its own server → TLS (`sslmode=verify-full`) for the exporter.
 - Prometheus, exporters, Fluent Bit and Loki stay on the internal network; only Grafana gets a login.
 - `KREDS_ENV=server` for Fluent Bit, so server logs are labelled `env="server"`.
