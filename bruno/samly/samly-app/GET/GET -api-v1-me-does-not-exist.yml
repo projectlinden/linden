@@ -1,0 +1,35 @@
+info:
+  name: GET /api/v1/me/does-not-exist
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{URL}}/does-not-exist"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("unknown path → 404 problem details", function () {
+          expect(res.getStatus()).to.equal(404);
+          expect(res.getHeader("content-type")).to.include("application/problem+json");
+        });
+
+        test("problem details carry code and the request's correlation id", function () {
+          const body = res.getBody();
+          expect(body.code).to.equal("not_found");
+          expect(body.correlationId).to.equal(res.getHeader("x-correlation-id"));
+        });
+
+        test("no internals in the detail", function () {
+          expect(res.getBody().detail).to.not.include("static resource");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
