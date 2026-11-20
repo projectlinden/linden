@@ -1,5 +1,5 @@
 info:
-  name: Garage - refuses request witout a token
+  name: Garage - refuses request without a token
   type: http
   seq: 1
 

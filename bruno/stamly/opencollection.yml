@@ -1,7 +1,7 @@
 opencollection: 1.0.0
 
 info:
-  name: Samly
+  name: Stamly
   version: 1.0.0
 config:
   proxy:
@@ -19,11 +19,11 @@ request:
   auth:
     type: oauth2
     flow: authorization_code
-    authorizationUrl: http://localhost:8180/realms/kreds/protocol/openid-connect/auth
-    accessTokenUrl: http://localhost:8180/realms/kreds/protocol/openid-connect/token
+    authorizationUrl: http://localhost:8180/realms/stamly/protocol/openid-connect/auth
+    accessTokenUrl: http://localhost:8180/realms/stamly/protocol/openid-connect/token
     callbackUrl: http://localhost:5173/
     credentials:
-      clientId: kreds-web
+      clientId: stamly-web
       placement: body
     scope: openid
     pkce: {}

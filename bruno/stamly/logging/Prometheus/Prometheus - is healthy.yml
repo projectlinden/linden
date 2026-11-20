@@ -18,7 +18,7 @@ runtime:
 
         test("all expected targets are up", function () {
           const targets = res.getBody().data.activeTargets;
-          const expectedJobs = ["prometheus", "keycloak", "garage", "postgres", "opensearch", "kreds-app", "loki", "fluent-bit"];
+          const expectedJobs = ["prometheus", "keycloak", "garage", "postgres", "stamly-app", "loki", "fluent-bit"];
 
           expectedJobs.forEach(function (job) {
             const target = targets.find(t => t.labels.job === job);
