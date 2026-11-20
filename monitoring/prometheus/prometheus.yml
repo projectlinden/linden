@@ -25,10 +25,6 @@ scrape_configs:
     static_configs:
       - targets: [ "postgres-exporter:9187" ]
 
-  - job_name: opensearch
-    static_configs:
-      - targets: [ "opensearch-exporter:9114" ]
-
   - job_name: kreds-app
     metrics_path: /actuator/prometheus
     static_configs:

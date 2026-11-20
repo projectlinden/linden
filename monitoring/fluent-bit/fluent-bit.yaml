@@ -45,7 +45,7 @@ pipeline:
     # Lines without a service label (other containers on this machine) are dropped too.
     - name: grep
       match: docker.*
-      regex: service ^(prometheus|grafana|loki|garage|opensearch|dashboards|postgres-exporter|opensearch-exporter|keycloak|postgres)$
+      regex: service ^(prometheus|grafana|loki|garage|postgres-exporter|opensearch-exporter|keycloak|postgres)$
 
     # Remove personal data (log-inventory.md): Keycloak username/ipAddress/code_id and IPs,
     # Postgres STATEMENT/DETAIL lines, and every email address in every service
