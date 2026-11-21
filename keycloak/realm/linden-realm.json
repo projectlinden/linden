@@ -1,6 +1,6 @@
 {
-  "realm": "kreds",
-  "displayName": "Kreds",
+  "realm": "linden",
+  "displayName": "Linden",
   "enabled": true,
   "sslRequired": "external",
   "registrationAllowed": false,
@@ -16,8 +16,8 @@
   "ssoSessionMaxLifespan": 36000,
   "clients": [
     {
-      "clientId": "kreds-web",
-      "name": "Kreds web app",
+      "clientId": "linden-web",
+      "name": "Linden web app",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": true,
@@ -37,11 +37,11 @@
       },
       "protocolMappers": [
         {
-          "name": "audience-kreds-api",
+          "name": "audience-linden-api",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-audience-mapper",
           "config": {
-            "included.custom.audience": "kreds-api",
+            "included.custom.audience": "linden-api",
             "access.token.claim": "true",
             "id.token.claim": "false"
           }

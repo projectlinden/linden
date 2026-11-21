@@ -1,9 +1,9 @@
 {
-  "uid": "kreds-overview",
-  "title": "Kreds – is it OK?",
-  "description": "One calm screen: is every part of Kreds running? (ADR-0003)",
+  "uid": "linden-overview",
+  "title": "Linden – is it OK?",
+  "description": "One calm screen: is every part of Linden running? (ADR-0003)",
   "tags": [
-    "kreds"
+    "linden"
   ],
   "timezone": "browser",
   "refresh": "1m",
@@ -232,7 +232,7 @@
       "id": 6,
       "type": "timeseries",
       "title": "App requests per minute",
-      "description": "Requests to the Kreds API. Empty until the app has served requests.",
+      "description": "Requests to the Linden API. Empty until the app has served requests.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -250,7 +250,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"kreds-app\"}[5m])) * 60",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"linden-app\"}[5m])) * 60",
           "legendFormat": "all"
         },
         {
@@ -259,7 +259,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(http_server_requests_seconds_count{job=\"kreds-app\",status=~\"5..\"}[5m])) * 60",
+          "expr": "sum(rate(http_server_requests_seconds_count{job=\"linden-app\",status=~\"5..\"}[5m])) * 60",
           "legendFormat": "server errors (5xx)"
         }
       ],
@@ -294,7 +294,7 @@
       "id": 7,
       "type": "timeseries",
       "title": "App memory (JVM heap)",
-      "description": "Heap of the Kreds app.",
+      "description": "Heap of the Linden app.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -312,7 +312,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(jvm_memory_used_bytes{job=\"kreds-app\",area=\"heap\"})",
+          "expr": "sum(jvm_memory_used_bytes{job=\"linden-app\",area=\"heap\"})",
           "legendFormat": "used"
         },
         {
@@ -321,7 +321,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(jvm_memory_max_bytes{job=\"kreds-app\",area=\"heap\"})",
+          "expr": "sum(jvm_memory_max_bytes{job=\"linden-app\",area=\"heap\"})",
           "legendFormat": "max"
         }
       ],
@@ -356,7 +356,7 @@
       "id": 8,
       "type": "timeseries",
       "title": "Postgres database size",
-      "description": "Size of the kreds and keycloak databases.",
+      "description": "Size of the linden and keycloak databases.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -374,7 +374,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "pg_database_size_bytes{datname=~\"kreds|keycloak\"}",
+          "expr": "pg_database_size_bytes{datname=~\"linden|keycloak\"}",
           "legendFormat": "{{datname}}"
         }
       ],
@@ -416,9 +416,9 @@
     {
       "title": "Logs",
       "type": "link",
-      "url": "/d/kreds-logs",
+      "url": "/d/linden-logs",
       "icon": "doc",
-      "tooltip": "Kreds – logs",
+      "tooltip": "Linden – logs",
       "targetBlank": false
     }
   ]

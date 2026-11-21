@@ -16,7 +16,10 @@ http:
     - name: since
       value: 1h
       type: query
-  auth: inherit
+  auth:
+    type: basic
+    username: "{{grafanaUser}}"
+    password: "{{grafanaPassword}}"
 
 runtime:
   scripts:
