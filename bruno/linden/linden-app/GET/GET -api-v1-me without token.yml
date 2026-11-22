@@ -1,0 +1,24 @@
+info:
+  name: GET /api/v1/me without token
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{URL}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("no token → 401 with a Bearer challenge", function () {
+          expect(res.getStatus()).to.equal(401);
+          expect(res.getHeader("www-authenticate")).to.include("Bearer");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
