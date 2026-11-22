@@ -11,7 +11,7 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: postgres:17
+    image: postgres:17.11
     container_name: linden-postgres
     labels:
       linden.service: postgres

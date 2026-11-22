@@ -1,9 +1,11 @@
 package io.github.projectlinden.monitoring;
 
+import io.github.projectlinden.TestcontainersConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -12,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code LOGGING_LEVEL_IO_GITHUB_PROJECTLINDEN=DEBUG} – Spring Boot maps it to the property used here.
  */
 @SpringBootTest(properties = "logging.level.io.github.projectlinden=DEBUG")
+@Import(TestcontainersConfiguration.class)
 class DebugOverrideIT {
 
     @Test
