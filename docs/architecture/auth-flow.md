@@ -1,6 +1,6 @@
 # Login and identity flow
 
-How Kreds uses **Keycloak** for login and **Postgres** for everything the app itself knows about
+How Linden uses **Keycloak** for login and **Postgres** for everything the app itself knows about
 users and their *kredse* – and how the two are connected.
 
 > **Status:** design for Phase 2. The split (Keycloak = identity, Postgres = *kredse* and membership)
@@ -15,21 +15,21 @@ Neither knows *what you wrote*** – that is end-to-end encrypted (see [encrypti
 
 ```mermaid
 flowchart LR
-    pwa["kreds-web<br/>React PWA"]
+    pwa["linden-web<br/>React PWA"]
 
     subgraph kc["Keycloak – identity only"]
-        realm["Realm: kreds<br/>accounts, passwords, passkeys,<br/>sessions, app-wide roles"]
+        realm["Realm: linden<br/>accounts, passwords, passkeys,<br/>sessions, app-wide roles"]
     end
 
-    subgraph app["Spring Boot (kreds-app)"]
-        api["kreds-api<br/>OAuth2 resource server"]
-        core["kreds-core<br/>kredse, membership, rules"]
+    subgraph app["Spring Boot (linden-app)"]
+        api["linden-api<br/>OAuth2 resource server"]
+        core["linden-core<br/>kredse, membership, rules"]
         api --> core
     end
 
     subgraph pg["Postgres 17"]
         kcdb[("database: keycloak<br/>owned by Keycloak")]
-        kredsdb[("database: kreds<br/>owned by Kreds, Flyway")]
+        lindendb[("database: linden<br/>owned by Linden, Flyway")]
     end
 
     pwa -- "(1) login (Authorization Code + PKCE)" --> realm
@@ -37,20 +37,20 @@ flowchart LR
     pwa -- "(3) API call + Bearer JWT" --> api
     api -. "(4) fetch public signing keys (JWKS)" .-> realm
     realm --> kcdb
-    core --> kredsdb
+    core --> lindendb
 ```
 
-| | Keycloak | Postgres `kreds` database |
-|---|---|---|
-| **Holds** | Email, password hash, passkeys, sessions, login history, app-wide roles (e.g. operator admin) | Users (only the Keycloak ID), *kredse*, membership + role, invitations (*bifrost*), metadata, encrypted blobs |
-| **Written by** | Keycloak only | `kreds-core` only, schema via Flyway |
-| **Read by Spring Boot** | Never directly – only through the JWT | On every request |
+|                         | Keycloak                                                                                      | Postgres `linden` database                                                                                    |
+|-------------------------|-----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| **Holds**               | Email, password hash, passkeys, sessions, login history, app-wide roles (e.g. operator admin) | Users (only the Keycloak ID), *kredse*, membership + role, invitations (*bifrost*), metadata, encrypted blobs |
+| **Written by**          | Keycloak only                                                                                 | `linden-core` only, schema via Flyway                                                                         |
+| **Read by Spring Boot** | Never directly – only through the JWT                                                         | On every request                                                                                              |
 
 ### The link between the two: `sub`
 
 Every Keycloak user has a stable, random ID – the `sub` claim in the JWT
-(e.g. `3f2c9a1e-…`). Kreds uses it as the user ID in Postgres. **Nothing else is copied**:
-no email, no password, no name from Keycloak lands in the `kreds` database.
+(e.g. `3f2c9a1e-…`). Linden uses it as the user ID in Postgres. **Nothing else is copied**:
+no email, no password, no name from Keycloak lands in the `linden` database.
 
 ```mermaid
 erDiagram
@@ -89,7 +89,7 @@ erDiagram
     }
 ```
 
-`KEYCLOAK_USER` lives in the `keycloak` database and is shown only to explain the link – Kreds never
+`KEYCLOAK_USER` lives in the `keycloak` database and is shown only to explain the link – Linden never
 queries it. Table and column names are a **(proposal)** for the Flyway migrations in Phase 2.
 
 ---
@@ -103,12 +103,12 @@ login is the same app that picks up the token.
 sequenceDiagram
     autonumber
     actor U as User
-    participant W as kreds-web
+    participant W as linden-web
     participant K as Keycloak
-    participant A as kreds-api
-    participant P as Postgres (kreds)
+    participant A as linden-api
+    participant P as Postgres (linden)
 
-    U->>W: open Kreds
+    U->>W: open Linden
     W->>W: create code_verifier + code_challenge
     W->>K: redirect to login page (code_challenge)
     U->>K: password or passkey
@@ -133,10 +133,10 @@ It does not call Keycloak on every request.
 ```mermaid
 sequenceDiagram
     autonumber
-    participant W as kreds-web
-    participant A as kreds-api
-    participant C as kreds-core
-    participant P as Postgres (kreds)
+    participant W as linden-web
+    participant A as linden-api
+    participant C as linden-core
+    participant P as Postgres (linden)
 
     W->>A: GET /api/circles/{circleId}/glimt + JWT
     A->>A: JWT valid? → user id = sub
@@ -165,7 +165,7 @@ Returning `404` instead of `403` for a foreign *kreds* is a **(proposal)**.
 
 ## 4. Joining through a *bifrost* link (invite-only)
 
-Kreds has no public sign-up. A new person can only get an account through a *bifrost* link from a
+Linden has no public sign-up. A new person can only get an account through a *bifrost* link from a
 member. **(proposal)** – the exact mechanism is decided in ADR-0002. The flow below uses Keycloak's
 Admin API with a dedicated, least-privilege service account.
 
@@ -174,9 +174,9 @@ sequenceDiagram
     autonumber
     actor M as Member (Anna)
     actor N as New person (Erik)
-    participant W as kreds-web
-    participant A as kreds-api + kreds-core
-    participant P as Postgres (kreds)
+    participant W as linden-web
+    participant A as linden-api + linden-core
+    participant P as Postgres (linden)
     participant K as Keycloak
 
     M->>W: invite to "Family"
@@ -203,16 +203,17 @@ Afterwards Erik's devices still have to join the *kreds*' MLS group (KeyPackage 
 
 ## 5. Postgres: one server, two databases
 
-**(proposal)** Locally, Keycloak and Kreds share the existing Postgres 17 container, but each gets its
+**(proposal)** Locally, Keycloak and Linden share the existing Postgres 17 container, but each gets its
 **own database and its own database user**:
 
-| Database | User | Who creates the schema | Who may connect |
-|---|---|---|---|
-| `kreds` | `kreds` | Flyway (Spring Boot) | Spring Boot only |
-| `keycloak` | `keycloak` | Keycloak itself, on start | Keycloak only |
+| Database   | User       | Who creates the schema    | Who may connect  |
+|------------|------------|---------------------------|------------------|
+| `linden`   | `linden`   | Flyway (Spring Boot)      | Spring Boot only |
+| `keycloak` | `keycloak` | Keycloak itself, on start | Keycloak only    |
 
 Why separate:
-- **Least privilege** – a bug in Kreds cannot read password hashes, and Keycloak cannot touch *kreds* data.
+
+- **Least privilege** – a bug in Linden cannot read password hashes, and Keycloak cannot touch *kreds* data.
 - Keycloak manages and migrates its own schema on upgrades; Flyway must never see it.
 - Backups and restores can be done per database.
 - Later they can move to two Postgres servers without changing any code.
@@ -223,8 +224,8 @@ Why separate:
 
 A user lives in two places, so deletion must cover both (`VISION.md` § 10):
 
-1. `kreds-core` removes the user's rows in the `kreds` database (membership, own content, invitations).
-2. `kreds-api` deletes the Keycloak user through the Admin API.
+1. `linden-core` removes the user's rows in the `linden` database (membership, own content, invitations).
+2. `linden-api` deletes the Keycloak user through the Admin API.
 3. The audit log records *that* an account was deleted – never its content.
 
 Order and retry on partial failure are **(proposal)** – details in Phase 2.
