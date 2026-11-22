@@ -13,24 +13,35 @@ Inside the app, a group of people is called a *kreds* (Danish for *circle*).
 
 ## Stack
 
-Java 25 · Spring Boot 4 · Postgres · Keycloak · RabbitMQ · S3 (Garage locally) · React PWA
+Java 25 · Spring Boot 4 · Postgres · Keycloak · S3 (Garage locally) · Prometheus, Grafana, Loki · React PWA (planned)
 
 ## Getting started
 
 Requires Java 25, Docker and Docker Compose.
 
-```
-cp .env.example .env          # then change the passwords in .env
-docker compose up -d          # Postgres, Keycloak, Garage.
+```bash
+cp .env.example .env          # then replace every change-me in .env
+
+# Everything: Postgres, Keycloak, Garage + monitoring (Prometheus, Grafana, Loki, Fluent Bit)
+docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+
 ./mvnw verify                 # build all modules and run all tests
 ```
+
+Without monitoring (faster, less memory): `docker compose up -d` starts only Postgres, Keycloak and Garage.
+Compose then warns about "orphan containers" if monitoring ran before – that is harmless; never add
+`--remove-orphans`, it would delete the monitoring containers. Stop with the same `-f` options you started with.
 
 | Service          | Address                     |
 |------------------|-----------------------------|
 | Postgres         | `localhost:5432`            |
 | Garage (S3)      | http://localhost:3900       |
 | Keycloak (admin) | http://localhost:8180/admin |
+| Grafana          | http://localhost:3000       |
+| Prometheus       | http://localhost:9090       |
 
+First start? See [docs/local-setup.md](docs/local-setup.md) (Garage setup, Keycloak test user) and
+[docs/operations/monitoring.md](docs/operations/monitoring.md) (Linux: the app's metrics port and the firewall rule).
 First start? See [docs/local-setup.md](docs/local-setup.md)
 
 ## Documentation
