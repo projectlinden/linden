@@ -1,11 +1,13 @@
-# Kreds
+# Linden
 
-![Build](https://github.com/tysker/kreds/actions/workflows/build.yml/badge.svg)
+![Build](https://github.com/projectlinden/linden/actions/workflows/build.yml/badge.svg)
 
 > A calm, private place for the people you actually know. Made in the Nordics.
 
-Kreds (Danish for *circle*) is a private, end-to-end encrypted social app for family and friends –
+Linden is the code name of a private, end-to-end encrypted social app for family and friends –
 a Nordic alternative to Instagram, Facebook, Snapchat and WhatsApp. No ads, no strangers, no AI.
+The product name is not decided yet; it lives only in user-facing places, never in the code.
+Inside the app, a group of people is called a *kreds* (Danish for *circle*).
 
 **Status:** early prototype – Phase 2 (login with Keycloak). Family and friends only.
 
