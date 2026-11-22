@@ -25,17 +25,20 @@ docker compose up -d          # Postgres, Keycloak, Garage.
 ./mvnw verify                 # build all modules and run all tests
 ```
 
-| Service               | Address                     |
-|-----------------------|-----------------------------|
-| Postgres              | `localhost:5432`            |
-| Garage (S3)           | http://localhost:3900       |
-| Keycloak (admin)      | http://localhost:8180/admin |
+| Service          | Address                     |
+|------------------|-----------------------------|
+| Postgres         | `localhost:5432`            |
+| Garage (S3)      | http://localhost:3900       |
+| Keycloak (admin) | http://localhost:8180/admin |
 
 First start? See [docs/local-setup.md](docs/local-setup.md)
 
 ## Documentation
 
-- `docs/` – developer documentation (coming)
+- [Local setup](docs/local-setup.md) – first start, Keycloak, Garage, tokens with Bruno
+- [Project rules](docs/project-rules.md) – what the "Project rules" CI job checks, and what to do when it is red
+- [Architecture](docs/architecture/) – login (`auth-flow.md`) and end-to-end encryption (`encryption-flow.md`)
+- [Operations](docs/operations/) – monitoring and the log inventory
 
 ## Licence
 
