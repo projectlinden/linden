@@ -15,7 +15,7 @@ public class TestcontainersConfiguration {
     /**
      * Keep in step with the postgres image in docker-compose.yml.
      */
-    static final String POSTGRES_IMAGE = "postgres:17.X";
+    static final String POSTGRES_IMAGE = "postgres:17.11";
 
     @Bean
     @ServiceConnection
