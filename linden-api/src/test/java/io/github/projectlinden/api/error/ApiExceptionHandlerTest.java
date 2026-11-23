@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Proves the error contract of ENGINEERING.md § 7: every error is Problem Details with a stable code and the
  * request's correlation ID – and never shows internals.
  */
-@WebMvcTest
+@WebMvcTest(controllers = ApiExceptionHandlerTest.FailingController.class)
 @Import({SecurityConfig.class, ApiExceptionHandlerTest.FailingController.class})
 class ApiExceptionHandlerTest {
 

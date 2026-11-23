@@ -1,0 +1,43 @@
+info:
+  name: GET /api/v1/me (database down)
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{URL}}"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        // Manual check: run only while Postgres is stopped or paused.
+        test("database down → 503 problem details", function () {
+          expect(res.getStatus(), "status").to.equal(503);
+          expect(res.getHeader("content-type")).to.include("application/problem+json");
+        });
+
+        test("problem details carry code and the request's correlation id", function () {
+          const body = res.getBody();
+          expect(body.code).to.equal("service_unavailable");
+          expect(body.correlationId).to.equal(res.getHeader("x-correlation-id"));
+        });
+
+        test("no database internals in the response", function () {
+          const text = JSON.stringify(res.getBody()).toLowerCase();
+          expect(text).to.not.include("5432");
+          expect(text).to.not.include("jdbc");
+          expect(text).to.not.include("postgres");
+        });
+
+        test("answers quickly – the timeouts work (no 30 s hang)", function () {
+          expect(res.getResponseTime(), "response time in ms").to.be.below(10000);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
