@@ -12,12 +12,13 @@ runtime:
   scripts:
     - type: tests
       code: |-
-        // Manual check: run only while Postgres is stopped or paused.
+        // run this only while Postgres is stopped or paused
         test("database down → 503 problem details", function () {
-          expect(res.getStatus(), "status").to.equal(503);
+          expect(res.getStatus(), "status – run this only while Postgres is stopped or paused").to.equal(503);
           expect(res.getHeader("content-type")).to.include("application/problem+json");
         });
 
+        // run this only while Postgres is stopped or paused
         test("problem details carry code and the request's correlation id", function () {
           const body = res.getBody();
           expect(body.code).to.equal("service_unavailable");
