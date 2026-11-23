@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -26,8 +27,9 @@ class MeController {
 
     @GetMapping
     MeResponse getCurrentUser(@AuthenticationPrincipal Jwt token) {
-        // Safe to parse: the security door only lets tokens with a lowercase UUID sub through
-        AppUser user = appUserService.getOrCreate(UUID.fromString(token.getSubject()));
+        // The security door (UuidSubjectAuthenticationConverter) only lets tokens with a lowercase UUID sub through
+        String subject = Objects.requireNonNull(token.getSubject(), "No sub – the security door should have rejected this token");
+        AppUser user = appUserService.getOrCreate(UUID.fromString(subject));
         return new MeResponse(user.getId());
     }
 }
