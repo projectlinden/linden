@@ -4,11 +4,40 @@ The CI job **"Project rules"** (`.github/workflows/rules.yml`) checks the reposi
 and on every push to `main`. It is a **required check** in the ruleset `protect-main`: a pull request with a red
 "Project rules" cannot be merged. Each rule is its own named step, so a red run shows which rule broke.
 
-| Step                  | Rule                                                  | Tool                                                                                                                             |
-|-----------------------|-------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| **No secrets in Git** | No password, key or token in any commit of any branch | [gitleaks](https://github.com/gitleaks/gitleaks) (MIT), official image `ghcr.io/gitleaks/gitleaks`, pinned by tag **and** digest |
+| Step                           | Rule                                                                                                         | Tool                                                                                                                             |
+|--------------------------------|--------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| **No secrets in Git**          | No password, key or token in any commit of any branch                                                        | [gitleaks](https://github.com/gitleaks/gitleaks) (MIT), official image `ghcr.io/gitleaks/gitleaks`, pinned by tag **and** digest |
+| **No content in the database** | Every database column is on the allow list as `metadata` or `encrypted`, with a reason – no readable content | `SchemaClassificationIT` (Testcontainers Postgres)                                                                               |
 
 More rules join this job as they become testable (Dockerfile lint, image pins, licences, known vulnerabilities).
+
+## No content in the database
+
+The server must never store readable content (end-to-end encryption). `SchemaClassificationIT` runs all Flyway
+migrations against a throwaway Postgres, reads every column and compares them with the allow list
+`linden-core/src/test/resources/schema-classification.csv`:
+
+- a column that is not on the list → red (*"columns without a classification"*)
+- a line for a column that no longer exists → red (*"columns that no longer exist"*)
+- a line with an unknown level, no reason, or listed twice → red
+
+Each line is `table,column,classification,reason`. There are two levels: `metadata` (the server can read it – the
+reason says why it needs it) and `encrypted` (an opaque blob). There is no level for readable content.
+
+The test checks names and declarations, not what a column really holds – whether a `metadata` column reveals too
+much stays a question for the pull request review.
+
+### Run it locally
+
+```bash
+./mvnw --batch-mode --projects linden-core verify \
+  -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=SchemaClassificationIT
+```
+
+### Proven to fail
+
+A commit that added an unclassified column turned "No content in the database" red and blocked the merge (PR #40).
+Re-run this break check after changing the job.
 
 ## No secrets in Git
 

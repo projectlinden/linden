@@ -1,5 +1,6 @@
 package io.github.projectlinden.monitoring;
 
+import io.github.projectlinden.TestcontainersConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -7,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.annotation.Import;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -14,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = "logging.structured.format.console=logstash")
 @ExtendWith(OutputCaptureExtension.class)
+@Import(TestcontainersConfiguration.class)
 class StructuredLoggingIT {
 
     private static final Logger logger = LoggerFactory.getLogger(StructuredLoggingIT.class);

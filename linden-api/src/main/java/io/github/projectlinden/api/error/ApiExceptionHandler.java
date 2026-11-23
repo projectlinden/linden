@@ -5,7 +5,11 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.QueryTimeoutException;
+import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.http.*;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -38,6 +42,26 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             addCorrelationId(problem);
         }
         return response;
+    }
+
+    /**
+     * The database can't be reached right now – stopped, connection lost, or too slow: 503, so the app can say
+     * "try again in a moment". Every other database error is a bug and stays a 500 ({@link #handleUnexpected}).
+     */
+    @ExceptionHandler({
+            CannotCreateTransactionException.class,      // no connection when a transaction starts (a stopped database)
+            DataAccessResourceFailureException.class,    // the connection broke during the work
+            TransientDataAccessResourceException.class,  // the database was briefly unavailable
+            QueryTimeoutException.class                  // the database didn't answer in time
+    })
+    ProblemDetail handleDatabaseUnavailable(Exception exception) {
+        LOGGER.warn("Database unavailable while handling a request", exception);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "We can't reach our storage right now. Please try again in a moment.");
+        problem.setTitle("Service unavailable");
+        problem.setProperty("code", "service_unavailable");
+        addCorrelationId(problem);
+        return problem;
     }
 
     /**

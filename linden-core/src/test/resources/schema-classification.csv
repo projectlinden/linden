@@ -1,0 +1,8 @@
+# Every column in the linden database, with its classification (VISION.md § 5, ENGINEERING.md § 11).
+#   metadata  = the server can read it; it needs a reason (data minimisation)
+#   encrypted = an opaque blob the server can never read
+# There is no level for readable content – such a column can't be classified, so it can't exist.
+# table,column,classification,reason
+
+app_user,id,metadata,The Keycloak sub – the only link to the identity, no name or email (ADR-0002)
+app_user,created_at,metadata,The first visit, set by the database – a date, no content

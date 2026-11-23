@@ -43,6 +43,35 @@ The script runs **only when the volume is empty**. After changing it, recreate t
     docker volume rm linden_postgres-data
     docker compose up -d postgres
 
+## Run the app (IntelliJ)
+
+The app needs Postgres and Keycloak running (`docker compose up -d`). On start, **Flyway** creates or updates the
+tables in the `linden` database (`linden-core/src/main/resources/db/migration`). Without a reachable database the
+app does not start – it fails fast with a clear error.
+
+Run configuration for `LindenApplication` → **Modify options → Environment variables**:
+
+| Variable                 | Value                                            | Needed?                  |
+|--------------------------|--------------------------------------------------|--------------------------|
+| `LINDEN_DB_PASSWORD`     | the same value as `LINDEN_DB_PASSWORD` in `.env` | yes                      |
+| `LINDEN_DB_URL`          | `jdbc:postgresql://localhost:5432/linden`        | no – that is the default |
+| `LINDEN_DB_USER`         | `linden`                                         | no – that is the default |
+| `LINDEN_AUTH_ISSUER_URI` | `http://localhost:8180/realms/linden`            | no – that is the default |
+
+- Put the password **only** in *Environment variables* – never in *Active profiles*, never in a file in the repo.
+- Keep the run configuration local: never tick **Store as project file** (it would be committed).
+- The database timeouts are in `application.properties`: at most 3 s to get a connection, so a stopped or paused
+  database gives a quick `503 service_unavailable`, never a hanging request.
+
+### When it does not start
+
+| Symptom                                                                         | Cause                                                                                                                                              |
+|---------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| *The server requested SCRAM-based authentication, but no password was provided* | `LINDEN_DB_PASSWORD` is not set in the run configuration                                                                                           |
+| *Invalid profile property value … 'LINDEN_DB_PASSWORD=…'*                       | The password was put into *Active profiles* – move it to *Environment variables*, and **change the password** if that log line was shared anywhere |
+| *Connection to localhost:5432 refused*                                          | Postgres is not running – `docker compose up -d postgres`                                                                                          |
+| `GET /api/v1/me` → `503 service_unavailable`                                    | The database stopped or paused after the app started – start it again; the app reconnects by itself                                                |
+
 ## Keycloak
 
 Runs in development mode (`start-dev`) on http://localhost:8180, with its data in the `keycloak` database.
@@ -100,7 +129,7 @@ Set the auth **once on the collection**, so every request inherits it:
 2. Fill in:
 
    | Field              | Value                                                                 |
-      |--------------------|-----------------------------------------------------------------------|
+            |--------------------|-----------------------------------------------------------------------|
    | Grant type         | Authorization Code                                                    |
    | Callback URL       | `http://localhost:5173/`                                              |
    | Authorization URL  | `http://localhost:8180/realms/linden/protocol/openid-connect/auth`    |

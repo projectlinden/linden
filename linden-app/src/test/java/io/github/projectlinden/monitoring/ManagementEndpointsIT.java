@@ -1,11 +1,13 @@
 package io.github.projectlinden.monitoring;
 
+import io.github.projectlinden.TestcontainersConfiguration;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalManagementPort;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Import;
 
 import java.io.IOException;
 import java.net.URI;
@@ -23,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         webEnvironment = WebEnvironment.RANDOM_PORT,
         // Port 0 = a free random port, so the test never clashes with a running app
         properties = "management.server.port=0")
+@Import(TestcontainersConfiguration.class)
 class ManagementEndpointsIT {
 
     private final HttpClient httpClient = HttpClient.newHttpClient();

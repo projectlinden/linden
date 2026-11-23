@@ -42,7 +42,6 @@ Compose then warns about "orphan containers" if monitoring ran before – that i
 
 First start? See [docs/local-setup.md](docs/local-setup.md) (Garage setup, Keycloak test user) and
 [docs/operations/monitoring.md](docs/operations/monitoring.md) (Linux: the app's metrics port and the firewall rule).
-First start? See [docs/local-setup.md](docs/local-setup.md)
 
 ## Documentation
 
