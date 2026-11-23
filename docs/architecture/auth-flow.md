@@ -90,7 +90,14 @@ erDiagram
 ```
 
 `KEYCLOAK_USER` lives in the `keycloak` database and is shown only to explain the link – Linden never
-queries it. Table and column names are a **(proposal)** for the Flyway migrations in Phase 2.
+queries it.
+
+**`APP_USER` exists** (migration `V1__create_app_user.sql`): it is created on the user's first `GET /api/v1/me`, by
+an atomic insert (`INSERT … ON CONFLICT DO NOTHING`), so parallel first requests still create exactly one row. The
+API only accepts tokens whose `sub` is a lowercase UUID (`UuidSubjectAuthenticationConverter`) – anything else is a
+`401` before any controller runs. Every column is classified in
+`linden-core/src/test/resources/schema-classification.csv` (see [project rules](../project-rules.md)).
+The other tables are still a **(proposal)** for the next Phase 2 steps.
 
 ---
 
