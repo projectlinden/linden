@@ -77,14 +77,14 @@ fabric.properties
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
 
-### Intellij+all Patch ###
-# Ignore everything but code style settings and run configurations
-# that are supposed to be shared within teams.
+# Ignore everything but the shared code style settings.
+# Run configurations are NOT shared: they hold environment variables such as LINDEN_DB_PASSWORD
+# (docs/security.md, "Secrets"). Never tick "Store as project file" – and if it happens, Git ignores it.
 
 .idea/*
+.run/
 
 !.idea/codeStyles
-!.idea/runConfigurations
 
 ### Java ###
 # Compiled class file
