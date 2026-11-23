@@ -38,7 +38,7 @@ services:
       retries: 6
 
   postgres-exporter:
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.21.1
     container_name: linden-postgres-exporter
     labels:
       linden.service: postgres-exporter
