@@ -29,6 +29,7 @@ class CircleServiceIT {
 
     private static final UUID CREATOR_ID = UUID.fromString("8b2d4f60-1a3c-4e5f-9b7d-2c4e6f8a0b1d");
     private static final UUID OTHER_USER_ID = UUID.fromString("d4f6a8b0-2c1e-4a3b-8d5f-7e9a1b3c5d70");
+    private static final UUID THIRD_USER_ID = UUID.fromString("a1b3c5d7-e9f0-4a2b-8c4d-6e8f0a2b4c6d");
     private static final byte[] PAYLOAD = {0, 70, 97, 109};
 
     @Autowired
@@ -188,5 +189,44 @@ class CircleServiceIT {
         assertThatExceptionOfType(NotAMemberException.class)
                 .isThrownBy(() -> circleService.leaveCircle(circle.getId(), OTHER_USER_ID));
         assertThat(circleMemberRepository.count()).as("memberships – the owner's is untouched").isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("the owner leaves while others remain → the longest-standing member becomes owner, the rest stay members")
+    void leaveCircle_asOwnerWithOthers_longestStandingMemberBecomesOwner() {
+        // given – added in the opposite order to their join times: THIRD_USER_ID is added last, but joined first
+        Circle circle = circleService.createCircle(CREATOR_ID, PAYLOAD);
+        appUserRepository.insertIfAbsent(OTHER_USER_ID);
+        appUserRepository.insertIfAbsent(THIRD_USER_ID);
+        circleMemberRepository.save(new CircleMember(circle.getId(), OTHER_USER_ID, CircleRole.MEMBER));
+        circleMemberRepository.save(new CircleMember(circle.getId(), THIRD_USER_ID, CircleRole.MEMBER));
+        entityManager.flush();
+        setJoinedAt(circle.getId(), CREATOR_ID, "2026-10-01T10:00:00Z");
+        setJoinedAt(circle.getId(), OTHER_USER_ID, "2026-11-02T10:00:00Z");
+        setJoinedAt(circle.getId(), THIRD_USER_ID, "2026-11-01T10:00:00Z");   // the longest-standing after the owner
+        entityManager.clear();
+
+        // when
+        circleService.leaveCircle(circle.getId(), CREATOR_ID);
+        entityManager.flush();
+        entityManager.clear();
+
+        // then
+        assertThat(circleMemberRepository.findById(new CircleMemberId(circle.getId(), CREATOR_ID)))
+                .as("the old owner's membership").isEmpty();
+        assertThat(roleOf(circle.getId(), THIRD_USER_ID)).as("the longest-standing member").isEqualTo(CircleRole.OWNER);
+        assertThat(roleOf(circle.getId(), OTHER_USER_ID)).as("the newer member").isEqualTo(CircleRole.MEMBER);
+    }
+
+    /**
+     * now() is the same for every row in one transaction – tests that care about order set the time themselves.
+     */
+    private void setJoinedAt(UUID circleId, UUID userId, String isoTime) {
+        jdbcTemplate.update("UPDATE circle_member SET joined_at = ? WHERE circle_id = ? AND user_id = ?",
+                OffsetDateTime.parse(isoTime), circleId, userId);
+    }
+
+    private CircleRole roleOf(UUID circleId, UUID userId) {
+        return circleMemberRepository.findById(new CircleMemberId(circleId, userId)).orElseThrow().getRole();
     }
 }

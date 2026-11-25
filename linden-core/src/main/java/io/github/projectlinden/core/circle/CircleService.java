@@ -79,13 +79,19 @@ public class CircleService {
     }
 
     /**
-     * The user leaves the circle – any member, at any time (VISION.md § 5). Only their own membership is removed.
+     * The user leaves the circle – any member, at any time (VISION.md § 5). When the owner leaves while others remain,
+     * the longest-standing member becomes owner, so a circle never ends up without one.
      *
      * @throws NotAMemberException if the user is not a member – or the circle does not exist (deliberately the same)
      */
     @Transactional
     public void leaveCircle(UUID circleId, UUID userId) {
         CircleMember membership = getMembership(circleId, userId);
+        if (membership.getRole() == CircleRole.OWNER) {
+            circleMemberRepository.findOtherMembersLongestStandingFirst(circleId, userId).stream()
+                    .findFirst()
+                    .ifPresent(CircleMember::becomeOwner);
+        }
         circleMemberRepository.delete(membership);
     }
 }
