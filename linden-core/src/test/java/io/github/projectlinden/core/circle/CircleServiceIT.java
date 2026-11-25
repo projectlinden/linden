@@ -296,4 +296,89 @@ class CircleServiceIT {
         }
     }
 
+    /**
+     * A circle owned by CREATOR_ID, with OTHER_USER_ID and THIRD_USER_ID as members.
+     */
+    private Circle circleWithOwnerAndTwoMembers() {
+        Circle circle = circleService.createCircle(CREATOR_ID, PAYLOAD);
+        appUserRepository.insertIfAbsent(OTHER_USER_ID);
+        appUserRepository.insertIfAbsent(THIRD_USER_ID);
+        circleMemberRepository.save(new CircleMember(circle.getId(), OTHER_USER_ID, CircleRole.MEMBER));
+        circleMemberRepository.save(new CircleMember(circle.getId(), THIRD_USER_ID, CircleRole.MEMBER));
+        entityManager.flush();
+        entityManager.clear();
+        return circle;
+    }
+
+    @Test
+    @DisplayName("the owner removes a member → only that membership is gone; owner, other member and circle stay")
+    void removeMember_byOwner_removesOnlyThatMember() {
+        // given
+        Circle circle = circleWithOwnerAndTwoMembers();
+
+        // when
+        circleService.removeMember(circle.getId(), CREATOR_ID, OTHER_USER_ID);
+        entityManager.flush();
+        entityManager.clear();
+
+        // then
+        assertThat(circleMemberRepository.findById(new CircleMemberId(circle.getId(), OTHER_USER_ID)))
+                .as("the removed member").isEmpty();
+        assertThat(roleOf(circle.getId(), CREATOR_ID)).as("the owner").isEqualTo(CircleRole.OWNER);
+        assertThat(roleOf(circle.getId(), THIRD_USER_ID)).as("the other member").isEqualTo(CircleRole.MEMBER);
+        assertThat(appUserRepository.findById(OTHER_USER_ID)).as("the removed member's user row").isPresent();
+    }
+
+    @Test
+    @DisplayName("a member who is not the owner tries to remove someone → NotCircleOwnerException, nothing changes")
+    void removeMember_byMemberWhoIsNotOwner_throwsNotCircleOwner() {
+        // given
+        Circle circle = circleWithOwnerAndTwoMembers();
+
+        // when + then
+        assertThatExceptionOfType(NotCircleOwnerException.class)
+                .isThrownBy(() -> circleService.removeMember(circle.getId(), OTHER_USER_ID, THIRD_USER_ID));
+        assertThat(circleMemberRepository.count()).as("memberships").isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("someone outside the circle tries to remove a member → NotAMemberException (strangers learn nothing)")
+    void removeMember_byNonMember_throwsNotAMember() {
+        // given – a circle CREATOR_ID owns alone; OTHER_USER_ID is a stranger to it
+        Circle circle = circleService.createCircle(CREATOR_ID, PAYLOAD);
+        appUserRepository.insertIfAbsent(OTHER_USER_ID);
+        entityManager.flush();
+        entityManager.clear();
+
+        // when + then
+        assertThatExceptionOfType(NotAMemberException.class)
+                .isThrownBy(() -> circleService.removeMember(circle.getId(), OTHER_USER_ID, CREATOR_ID));
+    }
+
+    @Test
+    @DisplayName("the owner names someone who is not in the circle → MemberNotFoundException")
+    void removeMember_whoIsNotAMember_throwsMemberNotFound() {
+        // given – OTHER_USER_ID exists as a user, but is not in this circle
+        Circle circle = circleService.createCircle(CREATOR_ID, PAYLOAD);
+        appUserRepository.insertIfAbsent(OTHER_USER_ID);
+        entityManager.flush();
+        entityManager.clear();
+
+        // when + then
+        assertThatExceptionOfType(MemberNotFoundException.class)
+                .isThrownBy(() -> circleService.removeMember(circle.getId(), CREATOR_ID, OTHER_USER_ID));
+    }
+
+    @Test
+    @DisplayName("the owner tries to remove themselves → CannotRemoveYourselfException (that is leaving, with its own rules)")
+    void removeMember_ownerRemovesThemselves_throwsCannotRemoveYourself() {
+        // given
+        Circle circle = circleWithOwnerAndTwoMembers();
+
+        // when + then
+        assertThatExceptionOfType(CannotRemoveYourselfException.class)
+                .isThrownBy(() -> circleService.removeMember(circle.getId(), CREATOR_ID, CREATOR_ID));
+        assertThat(roleOf(circle.getId(), CREATOR_ID)).as("still the owner").isEqualTo(CircleRole.OWNER);
+    }
+
 }
