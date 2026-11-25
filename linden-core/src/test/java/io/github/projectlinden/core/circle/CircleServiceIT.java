@@ -10,10 +10,17 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -31,6 +38,7 @@ class CircleServiceIT {
     private static final UUID OTHER_USER_ID = UUID.fromString("d4f6a8b0-2c1e-4a3b-8d5f-7e9a1b3c5d70");
     private static final UUID THIRD_USER_ID = UUID.fromString("a1b3c5d7-e9f0-4a2b-8c4d-6e8f0a2b4c6d");
     private static final byte[] PAYLOAD = {0, 70, 97, 109};
+    private static final int RACE_ROUNDS = 20;
 
     @Autowired
     private CircleService circleService;
@@ -248,4 +256,44 @@ class CircleServiceIT {
         assertThat(circleMemberRepository.count()).as("memberships").isZero();
         assertThat(appUserRepository.findById(CREATOR_ID)).as("the user row").isPresent();
     }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)   // each call commits on its own, like real requests
+    @DisplayName("the last two members leave at the same moment → the circle is deleted, never left empty")
+    void leaveCircle_lastTwoMembersAtTheSameMoment_deleteTheCircle() throws Exception {
+        List<UUID> circleIds = new ArrayList<>();
+        jdbcTemplate.update("INSERT INTO app_user (id) VALUES (?) ON CONFLICT DO NOTHING", OTHER_USER_ID);
+        try (ExecutorService threads = Executors.newFixedThreadPool(2)) {
+            for (int round = 1; round <= RACE_ROUNDS; round++) {
+                // given – a fresh circle with exactly two members
+                Circle circle = circleService.createCircle(CREATOR_ID, PAYLOAD);
+                circleIds.add(circle.getId());
+                circleMemberRepository.save(new CircleMember(circle.getId(), OTHER_USER_ID, CircleRole.MEMBER));
+                CountDownLatch startTogether = new CountDownLatch(1);
+                Future<?> ownerLeaves = threads.submit(() -> {
+                    startTogether.await();
+                    circleService.leaveCircle(circle.getId(), CREATOR_ID);
+                    return null;
+                });
+                Future<?> memberLeaves = threads.submit(() -> {
+                    startTogether.await();
+                    circleService.leaveCircle(circle.getId(), OTHER_USER_ID);
+                    return null;
+                });
+
+                // when
+                startTogether.countDown();
+                ownerLeaves.get();    // rethrows an error from the thread – a failed leave fails the test
+                memberLeaves.get();
+
+                // then
+                assertThat(circleRepository.existsById(circle.getId())).as("circle still there after round %d", round).isFalse();
+            }
+        } finally {
+            // this test commits – clean up, so the other tests start from an empty database
+            circleIds.forEach(id -> jdbcTemplate.update("DELETE FROM circle WHERE id = ?", id));
+            jdbcTemplate.update("DELETE FROM app_user WHERE id IN (?, ?)", CREATOR_ID, OTHER_USER_ID);
+        }
+    }
+
 }

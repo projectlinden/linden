@@ -86,6 +86,10 @@ public class CircleService {
      */
     @Transactional
     public void leaveCircle(UUID circleId, UUID userId) {
+        // One membership change per circle at a time: two members leaving at once must not both think
+        // "someone else is still here" (decided 2026-11-25)
+        circleRepository.findByIdForUpdate(circleId).orElseThrow(() -> new NotAMemberException(circleId));
+
         CircleMember membership = getMembership(circleId, userId);
         List<CircleMember> others = circleMemberRepository.findOtherMembersLongestStandingFirst(circleId, userId);
 
