@@ -7,10 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
@@ -38,5 +35,13 @@ class CircleController {
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(circle.getId()).toUri();
         return ResponseEntity.created(location).body(CircleResponse.from(circle));
+    }
+
+    /**
+     * My circles, oldest first – the order comes from {@link CircleService} and is kept as it is.
+     */
+    @GetMapping
+    CircleListResponse listCircles(@AuthenticationPrincipal Jwt token) {
+        return CircleListResponse.from(circleService.findCirclesOf(AuthenticatedUser.idOf(token)));
     }
 }

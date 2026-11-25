@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.endsWith;
@@ -26,6 +27,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpHeaders.LOCATION;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -36,6 +38,7 @@ class CircleControllerTest {
     private static final String CIRCLES_URL = "/api/v1/circles";
     private static final UUID USER_ID = UUID.fromString("8b2d4f60-1a3c-4e5f-9b7d-2c4e6f8a0b1d");
     private static final UUID CIRCLE_ID = UUID.fromString("3c1e7a52-8f4d-4b6a-9e21-5d7f0a8c4b13");
+    private static final UUID OTHER_CIRCLE_ID = UUID.fromString("6a9d2e14-7c3b-4f85-a1d6-0e8b5c7f2a94");
     private static final byte[] PAYLOAD = {0, 70, 97, 109};
     private static final String PAYLOAD_BASE64 = "AEZhbQ==";   // the same 4 bytes as Base64 text
 
@@ -118,5 +121,43 @@ class CircleControllerTest {
                 .with(jwt().jwt(token -> token.subject(USER_ID.toString())))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json);
+    }
+
+    @Test
+    @DisplayName("list my circles → 200 with my circles, in exactly the order the service gives them")
+    void list_returnsMyCirclesInTheServiceOrder() throws Exception {
+        // given – the service decides the order (oldest first); the API must keep it
+        given(circleService.findCirclesOf(USER_ID)).willReturn(List.of(
+                new Circle(OTHER_CIRCLE_ID, PAYLOAD),
+                new Circle(CIRCLE_ID, PAYLOAD)));
+
+        // when + then
+        mockMvc.perform(get(CIRCLES_URL).with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.circles.length()").value(2))
+                .andExpect(jsonPath("$.circles[0].id").value(OTHER_CIRCLE_ID.toString()))
+                .andExpect(jsonPath("$.circles[1].id").value(CIRCLE_ID.toString()))
+                .andExpect(jsonPath("$.circles[0].payload").value(PAYLOAD_BASE64));
+    }
+
+    @Test
+    @DisplayName("no circles yet → 200 with an empty list, not an error")
+    void list_withNoCircles_returnsAnEmptyList() throws Exception {
+        // given
+        given(circleService.findCirclesOf(USER_ID)).willReturn(List.of());
+
+        // when + then
+        mockMvc.perform(get(CIRCLES_URL).with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.circles").isArray())
+                .andExpect(jsonPath("$.circles").isEmpty());
+    }
+
+    @Test
+    @DisplayName("list without a token → 401")
+    void list_withoutToken_returns401() throws Exception {
+        // when + then
+        mockMvc.perform(get(CIRCLES_URL))
+                .andExpect(status().isUnauthorized());
     }
 }
