@@ -229,4 +229,23 @@ class CircleServiceIT {
     private CircleRole roleOf(UUID circleId, UUID userId) {
         return circleMemberRepository.findById(new CircleMemberId(circleId, userId)).orElseThrow().getRole();
     }
+
+    @Test
+    @DisplayName("the last member leaves → the circle is deleted; the user row stays")
+    void leaveCircle_asLastMember_deletesTheCircle() {
+        // given – the creator is the only member (and therefore the owner)
+        Circle circle = circleService.createCircle(CREATOR_ID, PAYLOAD);
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        circleService.leaveCircle(circle.getId(), CREATOR_ID);
+        entityManager.flush();
+        entityManager.clear();
+
+        // then
+        assertThat(circleRepository.findById(circle.getId())).as("the circle").isEmpty();
+        assertThat(circleMemberRepository.count()).as("memberships").isZero();
+        assertThat(appUserRepository.findById(CREATOR_ID)).as("the user row").isPresent();
+    }
 }
