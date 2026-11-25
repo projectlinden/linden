@@ -1,0 +1,38 @@
+info:
+  name: POST /api/v1/circles (empty payload)
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{API_URL}}/circles"
+  body:
+    type: json
+    data: |-
+      {
+        "payload": ""
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("empty payload → 400", function () {
+          expect(res.getStatus(), res.getHeader("www-authenticate")).to.equal(400);
+          expect(res.getHeader("content-type")).to.include("application/problem+json");
+        });
+
+        test("problem details name the field and the reason", function () {
+          const body = res.getBody();
+          expect(body.code).to.equal("bad_request");
+          expect(body.errors[0].field).to.equal("payload");
+          expect(body.errors[0].reason).to.be.a("string").and.not.be.empty;
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

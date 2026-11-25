@@ -1,0 +1,31 @@
+info:
+  name: GET /api/v1/circles/{id} (not a member)
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{API_URL}}/circles/00000000-0000-4000-8000-000000000000"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        // An id nobody has – it must look exactly like a circle someone else owns
+        test("a circle I am not in → 404", function () {
+          expect(res.getStatus(), res.getHeader("www-authenticate")).to.equal(404);
+          expect(res.getHeader("content-type")).to.include("application/problem+json");
+        });
+
+        test("problem details with code circle_not_found and the request's correlation id", function () {
+          expect(res.getBody().code).to.equal("circle_not_found");
+          expect(res.getBody().correlationId).to.equal(res.getHeader("x-correlation-id"));
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
