@@ -1,0 +1,228 @@
+diff --git a/docs/architecture/auth-flow.md b/docs/architecture/auth-flow.md
+index 089829e..dfbdaa0 100644
+--- a/docs/architecture/auth-flow.md
++++ b/docs/architecture/auth-flow.md
+@@ -1,16 +1,16 @@
+ # Login and identity flow
+ 
+ How Linden uses **Keycloak** for login and **Postgres** for everything the app itself knows about
+-users and their *kredse* – and how the two are connected.
++users and their circles – and how the two are connected.
+ 
+-> **Status:** design for Phase 2. The split (Keycloak = identity, Postgres = *kredse* and membership)
++> **Status:** design for Phase 2. The split (Keycloak = identity, Postgres = circles and membership)
+ > is agreed and will be recorded as ADR-0002. Details marked **(proposal)** are not decided yet.
+ 
+ ---
+ 
+ ## 1. Who owns what
+ 
+-The one-sentence version: **Keycloak knows *who you are*. Postgres knows *which kredse you belong to*.
++The one-sentence version: **Keycloak knows *who you are*. Postgres knows *which circles you belong to*.
+ Neither knows *what you wrote*** – that is end-to-end encrypted (see [encryption-flow.md](encryption-flow.md)).
+ 
+ ```mermaid
+@@ -23,7 +23,7 @@ flowchart LR
+ 
+     subgraph app["Spring Boot (linden-app)"]
+         api["linden-api<br/>OAuth2 resource server"]
+-        core["linden-core<br/>kredse, membership, rules"]
++        core["linden-core<br/>circles, membership, rules"]
+         api --> core
+     end
+ 
+@@ -42,7 +42,7 @@ flowchart LR
+ 
+ |                         | Keycloak                                                                                      | Postgres `linden` database                                                                                    |
+ |-------------------------|-----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+-| **Holds**               | Email, password hash, passkeys, sessions, login history, app-wide roles (e.g. operator admin) | Users (only the Keycloak ID), *kredse*, membership + role, invitations (*bifrost*), metadata, encrypted blobs |
++| **Holds**               | Email, password hash, passkeys, sessions, login history, app-wide roles (e.g. operator admin) | Users (only the Keycloak ID), circles, membership + role, invitations, metadata, encrypted blobs |
+ | **Written by**          | Keycloak only                                                                                 | `linden-core` only, schema via Flyway                                                                         |
+ | **Read by Spring Boot** | Never directly – only through the JWT                                                         | On every request                                                                                              |
+ 
+@@ -57,7 +57,7 @@ erDiagram
+     KEYCLOAK_USER ||--|| APP_USER : "sub = id"
+     APP_USER ||--o{ CIRCLE_MEMBER : "is member"
+     CIRCLE ||--o{ CIRCLE_MEMBER : "has"
+-    CIRCLE ||--o{ INVITATION : "bifrost links"
++    CIRCLE ||--o{ INVITATION : "invitation links"
+ 
+     KEYCLOAK_USER {
+         uuid id "the sub claim"
+@@ -149,25 +149,25 @@ sequenceDiagram
+     participant C as linden-core
+     participant P as Postgres (linden)
+ 
+-    W->>A: GET /api/circles/{circleId}/glimt + JWT
++    W->>A: GET /api/v1/circles/{circleId}/posts + JWT
+     A->>A: JWT valid? → user id = sub
+-    A->>C: list glimt (circleId, sub)
++    A->>C: list posts (circleId, sub)
+     C->>P: is sub a member of circleId?
+     alt member
+         P-->>C: yes, role = member
+-        C->>P: load glimt metadata + ciphertext
+-        C-->>A: encrypted glimt
++        C->>P: load post metadata + payload
++        C-->>A: encrypted posts
+         A-->>W: 200 + ciphertext (decrypted on the device)
+     else not a member (or removed a minute ago)
+         P-->>C: no
+         C-->>A: access denied
+-        A-->>W: 404 (does not reveal that the kreds exists)
++        A-->>W: 404 (does not reveal that the circle exists)
+     end
+ ```
+ 
+-**Why membership is not in the token:** a JWT is valid until it expires. If *kredse* were Keycloak
++**Why membership is not in the token:** a JWT is valid until it expires. If circles were Keycloak
+ groups inside the token, a removed member could keep reading until then – and the token would carry
+-*kreds* names, which must stay encrypted. Reading membership from Postgres on every request makes
++circle names, which must stay encrypted. Reading membership from Postgres on every request makes
+ removal take effect immediately.
+ 
+ **Decided:** a circle the user is not in and a circle that does not exist get the same answer –
+@@ -176,9 +176,9 @@ removal take effect immediately.
+ 
+ ---
+ 
+-## 4. Joining through a *bifrost* link (invite-only)
++## 4. Joining through an invitation link (invite-only)
+ 
+-Linden has no public sign-up. A new person can only get an account through a *bifrost* link from a
++Linden has no public sign-up. A new person can only get an account through an invitation link (shown as *bifrost* in the app) from a
+ member. **(proposal)** – the exact mechanism is decided in ADR-0002. The flow below uses Keycloak's
+ Admin API with a dedicated, least-privilege service account.
+ 
+@@ -195,10 +195,10 @@ sequenceDiagram
+     M->>W: invite to "Family"
+     W->>A: POST /api/circles/{id}/invitations
+     A->>P: Anna is a member? store hash(token), expires_at
+-    A-->>W: bifrost link with token (shown once)
++    A-->>W: invitation link with token (shown once)
+     M-->>N: sends the link (email, message, QR)
+ 
+-    N->>W: opens bifrost link
++    N->>W: opens invitation link
+     W->>A: check token
+     A->>P: hash matches, not expired, not used?
+     A->>K: create user (service account, Admin API)
+@@ -209,7 +209,7 @@ sequenceDiagram
+     Note over N,K: From now on: normal login (section 2)
+ ```
+ 
+-Afterwards Erik's devices still have to join the *kreds*' MLS group (KeyPackage → Welcome), as in
++Afterwards Erik's devices still have to join the circle's MLS group (KeyPackage → Welcome), as in
+ [encryption-flow.md](encryption-flow.md). Login gives him an account, not the keys.
+ 
+ ---
+@@ -226,7 +226,7 @@ Afterwards Erik's devices still have to join the *kreds*' MLS group (KeyPackage
+ 
+ Why separate:
+ 
+-- **Least privilege** – a bug in Linden cannot read password hashes, and Keycloak cannot touch *kreds* data.
++- **Least privilege** – a bug in Linden cannot read password hashes, and Keycloak cannot touch circle data.
+ - Keycloak manages and migrates its own schema on upgrades; Flyway must never see it.
+ - Backups and restores can be done per database.
+ - Later they can move to two Postgres servers without changing any code.
+@@ -247,7 +247,7 @@ Order and retry on partial failure are **(proposal)** – details in Phase 2.
+ 
+ ## 7. Rules
+ 
+-- Keycloak is **identity only**. No *kredse*, no membership, no content in Keycloak.
++- Keycloak is **identity only**. No circles, no membership, no content in Keycloak.
+ - The `sub` claim is the only link. Nothing else is copied from Keycloak to Postgres.
+ - Every request checks membership in Postgres, never from the token.
+ - Spring Boot never connects to the `keycloak` database.
+@@ -257,6 +257,6 @@ Order and retry on partial failure are **(proposal)** – details in Phase 2.
+ 
+ ## Related
+ 
+-- ADR-0002 (planned) – Keycloak for identity only; *kreds* membership in Postgres
++- ADR-0002 (planned) – Keycloak for identity only; circle membership in Postgres
+ - [encryption-flow.md](encryption-flow.md) – what happens after login: MLS groups and encrypted messages
+ - [RFC 7636 – PKCE](https://www.rfc-editor.org/rfc/rfc7636)
+diff --git a/docs/architecture/encryption-flow.md b/docs/architecture/encryption-flow.md
+index b2f8a54..c3e6ea1 100644
+--- a/docs/architecture/encryption-flow.md
++++ b/docs/architecture/encryption-flow.md
+@@ -1,6 +1,6 @@
+ # Encryption flow
+ 
+-How Linden encrypts a *snak* end to end with MLS (RFC 9420), using `@wireapp/core-crypto`
++How Linden encrypts a chat (shown as *snak* in the app) end to end with MLS (RFC 9420), using `@wireapp/core-crypto`
+ behind our own `linden-crypto` adapter.
+ 
+ > **Status:** design. The `linden-crypto` interface is not built yet. The method names below
+@@ -31,7 +31,7 @@ flowchart TB
+ 
+ | Layer                  | Knows about                                        | Never does                                                                    |
+ |------------------------|----------------------------------------------------|-------------------------------------------------------------------------------|
+-| `linden-web`           | Linden words: snak, kreds, invitation              | Import `@wireapp/core-crypto`                                                 |
++| `linden-web`           | Linden concepts: chat, circle, invitation              | Import `@wireapp/core-crypto`                                                 |
+ | `linden-crypto`        | Linden types **and** core-crypto                   | Let `ClientId`, `ConversationId` or other library types leave the package     |
+ | `@wireapp/core-crypto` | MLS: keys, epochs, encryption, padding, key wiping | Talk to the network on its own (it hands outgoing messages to `MlsTransport`) |
+ | Keystore               | Private keys and group state, encrypted            | Leave the device                                                              |
+@@ -43,7 +43,7 @@ interface, and one shared contract test suite runs against every adapter
+ 
+ ---
+ 
+-## 2. Setup: Alice invites Bob into a snak
++## 2. Setup: Alice invites Bob into a chat
+ 
+ ```mermaid
+ sequenceDiagram
+@@ -71,7 +71,7 @@ sequenceDiagram
+ 
+     Note over AW,S: Alice invites Bob
+     AW->>S: request Bob's KeyPackage
+-    S->>S: check: may Alice invite Bob? (shared kreds)
++    S->>S: check: may Alice invite Bob? (shared circle)
+     S-->>AW: Bob's KeyPackage
+     AW->>AC: invite(groupId, keyPackage)
+     AC->>AC: add member, new epoch
+@@ -88,11 +88,11 @@ sequenceDiagram
+ 
+ Why the server checks invitations: **anyone holding a user's KeyPackage can add that user to a
+ group** – MLS itself does not ask. Linden therefore controls who may invite whom (only members
+-of a shared kreds) and adds an explicit "accept invitation" step.
++of a shared circle) and adds an explicit "accept invitation" step.
+ 
+ ---
+ 
+-## 3. Sending and reading a snak
++## 3. Sending and reading a chat message
+ 
+ ```mermaid
+ sequenceDiagram
+@@ -112,7 +112,7 @@ sequenceDiagram
+     BW->>BC: decrypt(groupId, ciphertext)
+     alt valid message for this group
+         BC-->>BW: "Hej Bob" as bytes
+-        BW->>BW: show the snak
++        BW->>BW: show the message
+     else tampered or from another group
+         BC-->>BW: MessageRejected (Linden error, no library details)
+         BW->>BW: show a calm error, log without content
+@@ -130,7 +130,7 @@ sequenceDiagram
+ | Create group      | Nothing (local only)                        | –                                |
+ | Invite            | Group id, epoch, sizes, who invited whom    | Group secrets inside the Welcome |
+ | Join              | Who received a Welcome                      | Group secrets                    |
+-| Snak              | Group id, epoch, message size, sender, time | Message content                  |
++| Chat              | Group id, epoch, message size, sender, time | Message content                  |
+ 
+ This matches the data classification in `VISION.md`: metadata needed for delivery is visible,
+ content is always encrypted. Padding makes message sizes reveal less.
+diff --git a/docs/operations/monitoring.md b/docs/operations/monitoring.md
+index e6d95a9..e4e60b9 100644
+--- a/docs/operations/monitoring.md
++++ b/docs/operations/monitoring.md
+@@ -208,7 +208,7 @@ docker compose exec postgres bash /docker-entrypoint-initdb.d/20-create-monitori
+ 
+ The data classification applies to metrics too ("when in doubt, encrypt"):
+ 
+-1. **Labels never contain personal data** – no user IDs, *kreds* IDs, email addresses, IPs or paths. Keycloak's
++1. **Labels never contain personal data** – no user IDs, circle IDs, email addresses, IPs or paths. Keycloak's
+    login events are labelled only by realm, client, event and error (`KC_EVENT_METRICS_USER_TAGS=realm,clientId`).
+ 2. **Spring metrics use URI templates** (`/api/v1/circles/{id}`), never real IDs, as tags.
+ 3. Bruno checks enforce rule 1 for Keycloak, Garage and Postgres (allow-list of label names, no `@` in
