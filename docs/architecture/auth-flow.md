@@ -70,7 +70,7 @@ erDiagram
     }
     CIRCLE {
         uuid id PK
-        bytes ciphertext "name is encrypted"
+        bytes payload "name, sealed on the phone"
         timestamp created_at
     }
     CIRCLE_MEMBER {
@@ -97,7 +97,11 @@ an atomic insert (`INSERT … ON CONFLICT DO NOTHING`), so parallel first reques
 API only accepts tokens whose `sub` is a lowercase UUID (`UuidSubjectAuthenticationConverter`) – anything else is a
 `401` before any controller runs. Every column is classified in
 `linden-core/src/test/resources/schema-classification.csv` (see [project rules](../project-rules.md)).
-The other tables are still a **(proposal)** for the next Phase 2 steps.
+**`CIRCLE` and `CIRCLE_MEMBER` exist** (migration `V2__create_circle_and_membership.sql`): a circle's name is an
+opaque `payload` (first byte = format version, `0` = the fake lock – readable until real encryption replaces it); the
+creator becomes `owner` in the same transaction, and a writing request creates the caller's `APP_USER` row if it is
+their first request. Roles are stored as fixed lowercase text (`owner`, `member`) with a database `CHECK`. Deleting a
+circle removes its memberships (`ON DELETE CASCADE`), never users. `INVITATION` is still a **(proposal)** for Step 7.
 
 ---
 
@@ -166,7 +170,9 @@ groups inside the token, a removed member could keep reading until then – and 
 *kreds* names, which must stay encrypted. Reading membership from Postgres on every request makes
 removal take effect immediately.
 
-Returning `404` instead of `403` for a foreign *kreds* is a **(proposal)**.
+**Decided:** a circle the user is not in and a circle that does not exist get the same answer –
+`404 circle_not_found` – so nobody learns which circle ids exist by trying them (`NotAMemberException`,
+`ApiExceptionHandler`).
 
 ---
 

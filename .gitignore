@@ -83,6 +83,7 @@ fabric.properties
 
 .idea/*
 .run/
+*.iml
 
 !.idea/codeStyles
 

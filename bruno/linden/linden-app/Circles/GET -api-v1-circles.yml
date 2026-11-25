@@ -1,0 +1,36 @@
+info:
+  name: GET /api/v1/circles
+  type: http
+  seq: 2
+
+http:
+  method: GET
+  url: "{{API_URL}}/circles"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        // Run "POST /api/v1/circles" first – it sets {{circleId}}
+        test("list my circles → 200", function () {
+          expect(res.getStatus(), res.getHeader("www-authenticate")).to.equal(200);
+        });
+
+        test("the circles are a list inside an object", function () {
+          expect(res.getBody().circles).to.be.an("array");
+        });
+
+        test("the circle just created is in the list – and last, because the list is oldest first", function () {
+          const circles = res.getBody().circles;
+          const circleId = bru.getVar("circleId");
+          expect(circles.map(circle => circle.id)).to.include(circleId);
+          expect(circles[circles.length - 1].id).to.equal(circleId);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

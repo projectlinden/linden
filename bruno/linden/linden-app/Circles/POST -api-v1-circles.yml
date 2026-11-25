@@ -1,0 +1,55 @@
+info:
+  name: POST /api/v1/circles
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{API_URL}}/circles"
+  body:
+    type: json
+    data: |-
+      {
+        "payload": "AEZhbWlseQ=="
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: after-response
+      code: |-
+        // Remember the new circle for the next requests in this folder
+        if (res.getStatus() === 201) {
+          bru.setVar("circleId", res.getBody().id);
+        }
+    - type: tests
+      code: |-
+        // The payload is the fake lock: format version 0, then "Family" – NOT encrypted (see the prototype path)
+        test("create a circle → 201 Created", function () {
+          expect(res.getStatus(), res.getHeader("www-authenticate")).to.equal(201);
+        });
+
+        test("Location points to the new circle", function () {
+          expect(res.getHeader("location")).to.match(new RegExp("/api/v1/circles/" + res.getBody().id + "$"));
+        });
+
+        test("the body holds a random id and the payload as it was sent", function () {
+          const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          expect(res.getBody().id).to.match(uuid);
+          expect(res.getBody().payload).to.equal("AEZhbWlseQ==");
+        });
+
+        test("nothing else is sent back – no createdAt (data minimisation)", function () {
+          expect(Object.keys(res.getBody()).sort()).to.deep.equal(["id", "payload"]);
+        });
+
+        test("every response carries a correlation id", function () {
+          expect(res.getHeader("x-correlation-id")).to.match(/^[A-Za-z0-9-]{8,64}$/);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

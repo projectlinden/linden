@@ -6,3 +6,11 @@
 
 app_user,id,metadata,The Keycloak sub – the only link to the identity, no name or email (ADR-0002)
 app_user,created_at,metadata,The first visit, set by the database – a date, no content
+circle,id,metadata,The key every membership and post of this circle points to – random, says nothing about the circle
+circle,payload,encrypted,The circle name – written by people, so it is content; sealed on the phone, the server can't read it
+circle,created_at,metadata,The name is encrypted so the server can't sort by it – "my circles" are listed oldest first by this date
+circle_member,circle_id,metadata,Which circle the membership is for – the membership check on every request needs it
+circle_member,user_id,metadata,Who the member is (the Keycloak sub) – with circle_id this reveals who shares a circle with whom; accepted, the membership check and MLS delivery need it (ADR-0002)
+circle_member,role,metadata,Owner or member – only an owner may remove members (Phase 2, Step 6)
+circle_member,joined_at,metadata,When the person joined – shown as "member since", and lets the server deliver only what was sent after joining
+

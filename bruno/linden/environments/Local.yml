@@ -2,12 +2,18 @@ name: Local
 variables:
   - name: URL
     value: http://localhost:8080/api/v1/me
+    description: ""
   - name: URL_GRAFANA
     value: http://localhost:3000/api/
+    description: ""
   - name: grafanaUser
     value: linden-admin
+    description: ""
   - name: grafanaPassword
     value: "{{grafanaPassword}}"
+    description: ""
+  - name: API_URL
+    value: http://localhost:8080/api/v1
+    description: ""
   - secret: true
     name: grafanaPassword
-    description: ""
