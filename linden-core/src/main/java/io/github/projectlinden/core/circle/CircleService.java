@@ -51,4 +51,30 @@ public class CircleService {
     public List<Circle> findCirclesOf(UUID userId) {
         return List.copyOf(circleRepository.findCirclesOfMember(userId));
     }
+
+    /**
+     * A circle, for one of its members.
+     *
+     * @throws NotAMemberException if the user is not a member – or the circle does not exist (deliberately the same)
+     */
+    @Transactional(readOnly = true)
+    public Circle getCircle(UUID circleId, UUID userId) {
+        getMembership(circleId, userId);
+        return circleRepository.findById(circleId)
+                // a membership guarantees the circle exists (foreign key) – unless it was deleted a moment ago,
+                // and then "not a member" is exactly the right answer
+                .orElseThrow(() -> new NotAMemberException(circleId));
+    }
+
+    /**
+     * The user's membership in a circle – the check every circle operation starts with. The role inside it tells
+     * whether the user may change the circle.
+     *
+     * @throws NotAMemberException if the user is not a member – or the circle does not exist (deliberately the same)
+     */
+    @Transactional(readOnly = true)
+    public CircleMember getMembership(UUID circleId, UUID userId) {
+        return circleMemberRepository.findById(new CircleMemberId(circleId, userId))
+                .orElseThrow(() -> new NotAMemberException(circleId));
+    }
 }

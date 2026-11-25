@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
 
 /**
  * The circle rules against a real Postgres – the foreign keys and the CHECK constraints take part.
@@ -111,4 +113,42 @@ class CircleServiceIT {
         jdbcTemplate.update("UPDATE circle SET created_at = ? WHERE id = ?", OffsetDateTime.parse(isoTime), circleId);
     }
 
+    @Test
+    @DisplayName("get a circle as a member → the circle")
+    void getCircle_asMember_returnsTheCircle() {
+        // given
+        Circle created = circleService.createCircle(CREATOR_ID, PAYLOAD);
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        Circle found = circleService.getCircle(created.getId(), CREATOR_ID);
+
+        // then
+        assertThat(found.getId()).isEqualTo(created.getId());
+    }
+
+    @Test
+    @DisplayName("get a circle I am not in → NotAMemberException")
+    void getCircle_asNonMember_throwsNotAMember() {
+        // given – the circle exists, but belongs to someone else
+        Circle othersCircle = circleService.createCircle(OTHER_USER_ID, PAYLOAD);
+        entityManager.flush();
+        entityManager.clear();
+
+        // when + then
+        assertThatExceptionOfType(NotAMemberException.class)
+                .isThrownBy(() -> circleService.getCircle(othersCircle.getId(), CREATOR_ID));
+    }
+
+    @Test
+    @DisplayName("get a circle that does not exist → the same NotAMemberException, so nobody learns which circles exist")
+    void getCircle_thatDoesNotExist_throwsNotAMember() {
+        // given
+        UUID unknownCircleId = UUID.fromString("0f1e2d3c-4b5a-4968-8776-a5b4c3d2e1f0");
+
+        // when + then
+        assertThatExceptionOfType(NotAMemberException.class)
+                .isThrownBy(() -> circleService.getCircle(unknownCircleId, CREATOR_ID));
+    }
 }
