@@ -1,6 +1,7 @@
 package io.github.projectlinden.api.error;
 
 import io.github.projectlinden.api.logging.CorrelationIdFilter;
+import io.github.projectlinden.core.circle.NotAMemberException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +66,21 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             problem.setProperty("errors", errors);
         }
         return response;
+    }
+
+    /**
+     * Not a member of the circle – or it does not exist: 404 for both, so nobody learns which circles exist by trying
+     * ids. An expected case, not an error: logged at DEBUG only.
+     */
+    @ExceptionHandler(NotAMemberException.class)
+    ProblemDetail handleNotAMember(NotAMemberException exception) {
+        LOGGER.debug("Not a member of circle {} (or it does not exist)", exception.getCircleId());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND,
+                "This circle doesn't exist, or you're not a member of it.");
+        problem.setTitle("Circle not found");
+        problem.setProperty("code", "circle_not_found");
+        addCorrelationId(problem);
+        return problem;
     }
 
     /**

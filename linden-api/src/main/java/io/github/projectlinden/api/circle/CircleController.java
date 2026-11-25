@@ -12,6 +12,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Circles of the logged-in user. Every rule lives in {@link CircleService}; this class only speaks HTTP.
@@ -43,5 +44,13 @@ class CircleController {
     @GetMapping
     CircleListResponse listCircles(@AuthenticationPrincipal Jwt token) {
         return CircleListResponse.from(circleService.findCirclesOf(AuthenticatedUser.idOf(token)));
+    }
+
+    /**
+     * One circle, for one of its members. Not a member – or no such circle – becomes 404 (ApiExceptionHandler).
+     */
+    @GetMapping("/{circleId}")
+    CircleResponse getCircle(@AuthenticationPrincipal Jwt token, @PathVariable("circleId") UUID circleId) {
+        return CircleResponse.from(circleService.getCircle(circleId, AuthenticatedUser.idOf(token)));
     }
 }

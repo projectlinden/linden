@@ -3,6 +3,7 @@ package io.github.projectlinden.api.circle;
 import io.github.projectlinden.api.security.SecurityConfig;
 import io.github.projectlinden.core.circle.Circle;
 import io.github.projectlinden.core.circle.CircleService;
+import io.github.projectlinden.core.circle.NotAMemberException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -158,6 +159,50 @@ class CircleControllerTest {
     void list_withoutToken_returns401() throws Exception {
         // when + then
         mockMvc.perform(get(CIRCLES_URL))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("get a circle as a member → 200 with its id and payload")
+    void get_asMember_returnsTheCircle() throws Exception {
+        // given
+        given(circleService.getCircle(CIRCLE_ID, USER_ID)).willReturn(new Circle(CIRCLE_ID, PAYLOAD));
+
+        // when + then
+        mockMvc.perform(get(CIRCLES_URL + "/" + CIRCLE_ID).with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(CIRCLE_ID.toString()))
+                .andExpect(jsonPath("$.payload").value(PAYLOAD_BASE64));
+    }
+
+    @Test
+    @DisplayName("not a member, or the circle does not exist → 404 circle_not_found – the same answer for both")
+    void get_whenNotAMember_returns404() throws Exception {
+        // given
+        given(circleService.getCircle(CIRCLE_ID, USER_ID)).willThrow(new NotAMemberException(CIRCLE_ID));
+
+        // when + then
+        mockMvc.perform(get(CIRCLES_URL + "/" + CIRCLE_ID).with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("circle_not_found"))
+                .andExpect(jsonPath("$.correlationId").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("an id that is not a UUID → 400 bad_request, not a server error")
+    void get_withAnIdThatIsNotAUuid_returns400() throws Exception {
+        // when + then
+        mockMvc.perform(get(CIRCLES_URL + "/not-a-uuid").with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("bad_request"));
+    }
+
+    @Test
+    @DisplayName("get a circle without a token → 401")
+    void get_withoutToken_returns401() throws Exception {
+        // when + then
+        mockMvc.perform(get(CIRCLES_URL + "/" + CIRCLE_ID))
                 .andExpect(status().isUnauthorized());
     }
 }
