@@ -4,6 +4,7 @@ import io.github.projectlinden.core.user.AppUserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -40,5 +41,14 @@ public class CircleService {
         Circle saved = circleRepository.save(circle);
         circleMemberRepository.save(new CircleMember(saved.getId(), creatorId, CircleRole.OWNER));
         return saved;
+    }
+
+    /**
+     * The circles a user is a member of (any role), oldest first. A user the app has never seen simply has none –
+     * this only reads, it never creates a user row.
+     */
+    @Transactional(readOnly = true)
+    public List<Circle> findCirclesOf(UUID userId) {
+        return List.copyOf(circleRepository.findCirclesOfMember(userId));
     }
 }
