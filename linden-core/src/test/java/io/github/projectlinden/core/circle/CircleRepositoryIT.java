@@ -30,7 +30,7 @@ class CircleRepositoryIT {
     private EntityManager entityManager;
 
     @Test
-    @DisplayName("a saved kreds is read back from Postgres with the same id, payload bytes and a database timestamp")
+    @DisplayName("a saved circle is read back from Postgres with the same id, payload bytes and a database timestamp")
     void save_thenFindById_returnsTheSamePayloadAndADatabaseTimestamp() {
         // given
         UUID id = UUID.fromString("ef71a788-3695-418d-8466-08ca3bedf3e3");

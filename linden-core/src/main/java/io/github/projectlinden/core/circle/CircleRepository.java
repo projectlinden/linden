@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 
 /**
- * Stores kredse. Who is in which kreds lives in the membership table.
+ * Stores circles. Who is in which circle lives in the membership table.
  */
 public interface CircleRepository extends JpaRepository<Circle, UUID> {
 }

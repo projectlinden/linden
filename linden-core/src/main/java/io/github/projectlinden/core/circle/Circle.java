@@ -4,12 +4,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 import java.util.UUID;
 
 /**
- * A kreds. Its name is sealed on the phone and stored as an opaque {@code payload} (first byte: format version,
+ * A circle. Its name is sealed on the phone and stored as an opaque {@code payload} (first byte: format version,
  * {@code 0} = fake lock) – the server never reads it.
  */
 @Entity
@@ -27,6 +28,7 @@ public class Circle {
     @Column(name = "payload", nullable = false)
     private byte[] payload;
 
+    @Nullable
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -50,7 +52,7 @@ public class Circle {
     }
 
     /**
-     * A copy – changing the returned array never changes the kreds.
+     * A copy – changing the returned array never changes the circle.
      */
     public byte[] getPayload() {
         return payload.clone();
@@ -59,7 +61,7 @@ public class Circle {
     /**
      * Set by the database on insert; read it back from the database to see it.
      */
-    public Instant getCreatedAt() {
+    public @Nullable Instant getCreatedAt() {
         return createdAt;
     }
 
