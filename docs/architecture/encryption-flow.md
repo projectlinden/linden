@@ -1,6 +1,6 @@
 # Encryption flow
 
-How Linden encrypts a *snak* end to end with MLS (RFC 9420), using `@wireapp/core-crypto`
+How Linden encrypts a chat (shown as *snak* in the app) end to end with MLS (RFC 9420), using `@wireapp/core-crypto`
 behind our own `linden-crypto` adapter.
 
 > **Status:** design. The `linden-crypto` interface is not built yet. The method names below
@@ -31,7 +31,7 @@ flowchart TB
 
 | Layer                  | Knows about                                        | Never does                                                                    |
 |------------------------|----------------------------------------------------|-------------------------------------------------------------------------------|
-| `linden-web`           | Linden words: snak, kreds, invitation              | Import `@wireapp/core-crypto`                                                 |
+| `linden-web`           | Linden concepts: chat, circle, invitation              | Import `@wireapp/core-crypto`                                                 |
 | `linden-crypto`        | Linden types **and** core-crypto                   | Let `ClientId`, `ConversationId` or other library types leave the package     |
 | `@wireapp/core-crypto` | MLS: keys, epochs, encryption, padding, key wiping | Talk to the network on its own (it hands outgoing messages to `MlsTransport`) |
 | Keystore               | Private keys and group state, encrypted            | Leave the device                                                              |
@@ -43,7 +43,7 @@ interface, and one shared contract test suite runs against every adapter
 
 ---
 
-## 2. Setup: Alice invites Bob into a snak
+## 2. Setup: Alice invites Bob into a chat
 
 ```mermaid
 sequenceDiagram
@@ -71,7 +71,7 @@ sequenceDiagram
 
     Note over AW,S: Alice invites Bob
     AW->>S: request Bob's KeyPackage
-    S->>S: check: may Alice invite Bob? (shared kreds)
+    S->>S: check: may Alice invite Bob? (shared circle)
     S-->>AW: Bob's KeyPackage
     AW->>AC: invite(groupId, keyPackage)
     AC->>AC: add member, new epoch
@@ -88,11 +88,11 @@ sequenceDiagram
 
 Why the server checks invitations: **anyone holding a user's KeyPackage can add that user to a
 group** – MLS itself does not ask. Linden therefore controls who may invite whom (only members
-of a shared kreds) and adds an explicit "accept invitation" step.
+of a shared circle) and adds an explicit "accept invitation" step.
 
 ---
 
-## 3. Sending and reading a snak
+## 3. Sending and reading a chat message
 
 ```mermaid
 sequenceDiagram
@@ -112,7 +112,7 @@ sequenceDiagram
     BW->>BC: decrypt(groupId, ciphertext)
     alt valid message for this group
         BC-->>BW: "Hej Bob" as bytes
-        BW->>BW: show the snak
+        BW->>BW: show the message
     else tampered or from another group
         BC-->>BW: MessageRejected (Linden error, no library details)
         BW->>BW: show a calm error, log without content
@@ -130,7 +130,7 @@ sequenceDiagram
 | Create group      | Nothing (local only)                        | –                                |
 | Invite            | Group id, epoch, sizes, who invited whom    | Group secrets inside the Welcome |
 | Join              | Who received a Welcome                      | Group secrets                    |
-| Snak              | Group id, epoch, message size, sender, time | Message content                  |
+| Chat              | Group id, epoch, message size, sender, time | Message content                  |
 
 This matches the data classification in `VISION.md`: metadata needed for delivery is visible,
 content is always encrypted. Padding makes message sizes reveal less.

@@ -1,16 +1,16 @@
 # Login and identity flow
 
 How Linden uses **Keycloak** for login and **Postgres** for everything the app itself knows about
-users and their *kredse* – and how the two are connected.
+users and their circles – and how the two are connected.
 
-> **Status:** design for Phase 2. The split (Keycloak = identity, Postgres = *kredse* and membership)
+> **Status:** design for Phase 2. The split (Keycloak = identity, Postgres = circles and membership)
 > is agreed and will be recorded as ADR-0002. Details marked **(proposal)** are not decided yet.
 
 ---
 
 ## 1. Who owns what
 
-The one-sentence version: **Keycloak knows *who you are*. Postgres knows *which kredse you belong to*.
+The one-sentence version: **Keycloak knows *who you are*. Postgres knows *which circles you belong to*.
 Neither knows *what you wrote*** – that is end-to-end encrypted (see [encryption-flow.md](encryption-flow.md)).
 
 ```mermaid
@@ -23,7 +23,7 @@ flowchart LR
 
     subgraph app["Spring Boot (linden-app)"]
         api["linden-api<br/>OAuth2 resource server"]
-        core["linden-core<br/>kredse, membership, rules"]
+        core["linden-core<br/>circles, membership, rules"]
         api --> core
     end
 
@@ -42,7 +42,7 @@ flowchart LR
 
 |                         | Keycloak                                                                                      | Postgres `linden` database                                                                                    |
 |-------------------------|-----------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| **Holds**               | Email, password hash, passkeys, sessions, login history, app-wide roles (e.g. operator admin) | Users (only the Keycloak ID), *kredse*, membership + role, invitations (*bifrost*), metadata, encrypted blobs |
+| **Holds**               | Email, password hash, passkeys, sessions, login history, app-wide roles (e.g. operator admin) | Users (only the Keycloak ID), circles, membership + role, invitations, metadata, encrypted blobs |
 | **Written by**          | Keycloak only                                                                                 | `linden-core` only, schema via Flyway                                                                         |
 | **Read by Spring Boot** | Never directly – only through the JWT                                                         | On every request                                                                                              |
 
@@ -57,7 +57,7 @@ erDiagram
     KEYCLOAK_USER ||--|| APP_USER : "sub = id"
     APP_USER ||--o{ CIRCLE_MEMBER : "is member"
     CIRCLE ||--o{ CIRCLE_MEMBER : "has"
-    CIRCLE ||--o{ INVITATION : "bifrost links"
+    CIRCLE ||--o{ INVITATION : "invitation links"
 
     KEYCLOAK_USER {
         uuid id "the sub claim"
@@ -149,25 +149,25 @@ sequenceDiagram
     participant C as linden-core
     participant P as Postgres (linden)
 
-    W->>A: GET /api/circles/{circleId}/glimt + JWT
+    W->>A: GET /api/v1/circles/{circleId}/posts + JWT
     A->>A: JWT valid? → user id = sub
-    A->>C: list glimt (circleId, sub)
+    A->>C: list posts (circleId, sub)
     C->>P: is sub a member of circleId?
     alt member
         P-->>C: yes, role = member
-        C->>P: load glimt metadata + ciphertext
-        C-->>A: encrypted glimt
+        C->>P: load post metadata + payload
+        C-->>A: encrypted posts
         A-->>W: 200 + ciphertext (decrypted on the device)
     else not a member (or removed a minute ago)
         P-->>C: no
         C-->>A: access denied
-        A-->>W: 404 (does not reveal that the kreds exists)
+        A-->>W: 404 (does not reveal that the circle exists)
     end
 ```
 
-**Why membership is not in the token:** a JWT is valid until it expires. If *kredse* were Keycloak
+**Why membership is not in the token:** a JWT is valid until it expires. If circles were Keycloak
 groups inside the token, a removed member could keep reading until then – and the token would carry
-*kreds* names, which must stay encrypted. Reading membership from Postgres on every request makes
+circle names, which must stay encrypted. Reading membership from Postgres on every request makes
 removal take effect immediately.
 
 **Decided:** a circle the user is not in and a circle that does not exist get the same answer –
@@ -176,9 +176,9 @@ removal take effect immediately.
 
 ---
 
-## 4. Joining through a *bifrost* link (invite-only)
+## 4. Joining through an invitation link (invite-only)
 
-Linden has no public sign-up. A new person can only get an account through a *bifrost* link from a
+Linden has no public sign-up. A new person can only get an account through an invitation link (shown as *bifrost* in the app) from a
 member. **(proposal)** – the exact mechanism is decided in ADR-0002. The flow below uses Keycloak's
 Admin API with a dedicated, least-privilege service account.
 
@@ -195,10 +195,10 @@ sequenceDiagram
     M->>W: invite to "Family"
     W->>A: POST /api/circles/{id}/invitations
     A->>P: Anna is a member? store hash(token), expires_at
-    A-->>W: bifrost link with token (shown once)
+    A-->>W: invitation link with token (shown once)
     M-->>N: sends the link (email, message, QR)
 
-    N->>W: opens bifrost link
+    N->>W: opens invitation link
     W->>A: check token
     A->>P: hash matches, not expired, not used?
     A->>K: create user (service account, Admin API)
@@ -209,7 +209,7 @@ sequenceDiagram
     Note over N,K: From now on: normal login (section 2)
 ```
 
-Afterwards Erik's devices still have to join the *kreds*' MLS group (KeyPackage → Welcome), as in
+Afterwards Erik's devices still have to join the circle's MLS group (KeyPackage → Welcome), as in
 [encryption-flow.md](encryption-flow.md). Login gives him an account, not the keys.
 
 ---
@@ -226,7 +226,7 @@ Afterwards Erik's devices still have to join the *kreds*' MLS group (KeyPackage 
 
 Why separate:
 
-- **Least privilege** – a bug in Linden cannot read password hashes, and Keycloak cannot touch *kreds* data.
+- **Least privilege** – a bug in Linden cannot read password hashes, and Keycloak cannot touch circle data.
 - Keycloak manages and migrates its own schema on upgrades; Flyway must never see it.
 - Backups and restores can be done per database.
 - Later they can move to two Postgres servers without changing any code.
@@ -247,7 +247,7 @@ Order and retry on partial failure are **(proposal)** – details in Phase 2.
 
 ## 7. Rules
 
-- Keycloak is **identity only**. No *kredse*, no membership, no content in Keycloak.
+- Keycloak is **identity only**. No circles, no membership, no content in Keycloak.
 - The `sub` claim is the only link. Nothing else is copied from Keycloak to Postgres.
 - Every request checks membership in Postgres, never from the token.
 - Spring Boot never connects to the `keycloak` database.
@@ -257,6 +257,6 @@ Order and retry on partial failure are **(proposal)** – details in Phase 2.
 
 ## Related
 
-- ADR-0002 (planned) – Keycloak for identity only; *kreds* membership in Postgres
+- ADR-0002 (planned) – Keycloak for identity only; circle membership in Postgres
 - [encryption-flow.md](encryption-flow.md) – what happens after login: MLS groups and encrypted messages
 - [RFC 7636 – PKCE](https://www.rfc-editor.org/rfc/rfc7636)

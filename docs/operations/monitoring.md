@@ -208,7 +208,7 @@ docker compose exec postgres bash /docker-entrypoint-initdb.d/20-create-monitori
 
 The data classification applies to metrics too ("when in doubt, encrypt"):
 
-1. **Labels never contain personal data** – no user IDs, *kreds* IDs, email addresses, IPs or paths. Keycloak's
+1. **Labels never contain personal data** – no user IDs, circle IDs, email addresses, IPs or paths. Keycloak's
    login events are labelled only by realm, client, event and error (`KC_EVENT_METRICS_USER_TAGS=realm,clientId`).
 2. **Spring metrics use URI templates** (`/api/v1/circles/{id}`), never real IDs, as tags.
 3. Bruno checks enforce rule 1 for Keycloak, Garage and Postgres (allow-list of label names, no `@` in

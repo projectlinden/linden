@@ -20,12 +20,12 @@ Java 25 · Spring Boot 4 · Postgres · Keycloak · S3 (Garage locally) · Prome
 Requires Java 25, Docker and Docker Compose.
 
 ```bash
-cp .env.example .env          # then replace every change-me in .env
+cp .env.example .env # then replace every change-me in .env
 
 # Everything: Postgres, Keycloak, Garage + monitoring (Prometheus, Grafana, Loki, Fluent Bit)
 docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
-./mvnw verify                 # build all modules and run all tests
+./mvnw verify # build all modules and run all tests
 ```
 
 Without monitoring (faster, less memory): `docker compose up -d` starts only Postgres, Keycloak and Garage.
