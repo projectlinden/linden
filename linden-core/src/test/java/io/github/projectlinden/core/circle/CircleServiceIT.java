@@ -59,4 +59,21 @@ class CircleServiceIT {
         assertThat(owner.getRole()).isEqualTo(CircleRole.OWNER);
         assertThat(circleMemberRepository.count()).as("memberships – only the creator's").isEqualTo(1);
     }
+    
+    @Test
+    @DisplayName("a creator without an app_user row yet (never called /api/v1/me) → the circle is created, and the user row too")
+    void createCircle_forACreatorWithoutAUserRow_createsTheUserRowToo() {
+        // given – deliberately no insertIfAbsent: this user has never been seen by the app
+
+        // when
+        Circle created = circleService.createCircle(CREATOR_ID, PAYLOAD);
+        entityManager.flush();
+        entityManager.clear();
+
+        // then
+        assertThat(appUserRepository.findById(CREATOR_ID)).as("the creator's user row").isPresent();
+        assertThat(circleMemberRepository.findById(new CircleMemberId(created.getId(), CREATOR_ID)))
+                .as("the owner membership").isPresent();
+    }
+
 }
