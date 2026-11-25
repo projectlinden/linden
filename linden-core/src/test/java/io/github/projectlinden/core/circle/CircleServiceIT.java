@@ -151,4 +151,42 @@ class CircleServiceIT {
         assertThatExceptionOfType(NotAMemberException.class)
                 .isThrownBy(() -> circleService.getCircle(unknownCircleId, CREATOR_ID));
     }
+
+    @Test
+    @DisplayName("a member leaves → only their membership is gone; the owner, the circle and the user row stay")
+    void leaveCircle_asMember_removesOnlyMyMembership() {
+        // given – CREATOR_ID owns the circle, OTHER_USER_ID is a member
+        Circle circle = circleService.createCircle(CREATOR_ID, PAYLOAD);
+        appUserRepository.insertIfAbsent(OTHER_USER_ID);
+        circleMemberRepository.save(new CircleMember(circle.getId(), OTHER_USER_ID, CircleRole.MEMBER));
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        circleService.leaveCircle(circle.getId(), OTHER_USER_ID);
+        entityManager.flush();
+        entityManager.clear();
+
+        // then
+        assertThat(circleMemberRepository.findById(new CircleMemberId(circle.getId(), OTHER_USER_ID)))
+                .as("the leaver's membership").isEmpty();
+        CircleMember owner = circleMemberRepository.findById(new CircleMemberId(circle.getId(), CREATOR_ID)).orElseThrow();
+        assertThat(owner.getRole()).as("the owner stays owner").isEqualTo(CircleRole.OWNER);
+        assertThat(circleRepository.findById(circle.getId())).as("the circle").isPresent();
+        assertThat(appUserRepository.findById(OTHER_USER_ID)).as("the leaver's user row").isPresent();
+    }
+
+    @Test
+    @DisplayName("leave a circle I am not in → NotAMemberException, nothing changes")
+    void leaveCircle_asNonMember_throwsNotAMember() {
+        // given – the circle exists, but OTHER_USER_ID is not in it
+        Circle circle = circleService.createCircle(CREATOR_ID, PAYLOAD);
+        entityManager.flush();
+        entityManager.clear();
+
+        // when + then
+        assertThatExceptionOfType(NotAMemberException.class)
+                .isThrownBy(() -> circleService.leaveCircle(circle.getId(), OTHER_USER_ID));
+        assertThat(circleMemberRepository.count()).as("memberships – the owner's is untouched").isEqualTo(1);
+    }
 }

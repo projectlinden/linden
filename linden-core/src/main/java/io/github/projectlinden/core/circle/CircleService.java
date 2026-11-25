@@ -77,4 +77,15 @@ public class CircleService {
         return circleMemberRepository.findById(new CircleMemberId(circleId, userId))
                 .orElseThrow(() -> new NotAMemberException(circleId));
     }
+
+    /**
+     * The user leaves the circle – any member, at any time (VISION.md § 5). Only their own membership is removed.
+     *
+     * @throws NotAMemberException if the user is not a member – or the circle does not exist (deliberately the same)
+     */
+    @Transactional
+    public void leaveCircle(UUID circleId, UUID userId) {
+        CircleMember membership = getMembership(circleId, userId);
+        circleMemberRepository.delete(membership);
+    }
 }
