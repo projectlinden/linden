@@ -1,5 +1,5 @@
 info:
-  name: GET /api/v1/circles/{id}
+  name: Get it → 200
   type: http
   seq: 3
 

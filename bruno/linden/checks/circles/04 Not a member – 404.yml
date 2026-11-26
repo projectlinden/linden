@@ -1,5 +1,5 @@
 info:
-  name: GET /api/v1/circles/{id} (not a member)
+  name: A circle I'm not in → 404
   type: http
   seq: 4
 

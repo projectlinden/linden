@@ -1,0 +1,25 @@
+info:
+  name: Remove a member
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{API_URL}}/circles/{{circleId}}/members/{{memberId}}"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        // Owner only. Set memberId in the environment – until invitations exist, the member is added with SQL
+        test("204", function () {
+          expect(res.getStatus(), res.getHeader("www-authenticate")).to.equal(204);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

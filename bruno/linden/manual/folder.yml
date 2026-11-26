@@ -1,7 +1,7 @@
 info:
-  name: Get
+  name: 3 Manual
   type: folder
-  seq: 1
+  seq: 3
 
 request:
   auth: inherit

@@ -1,5 +1,5 @@
 info:
-  name: DELETE /api/v1/circles/{id}/members/{memberId} (not a member)
+  name: Remove someone not in it → 404
   type: http
   seq: 8
 
