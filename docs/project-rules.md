@@ -58,6 +58,10 @@ Still allowed in the API: Spring's database-neutral exceptions (`org.springframe
 
 A failure lists every violation with class, member and line, and the rule's reason.
 
+The step also checks that `ArchitectureTest` really ran (its Surefire report exists and holds at least one test):
+`-Dsurefire.failIfNoSpecifiedTests=false`, needed because of `--also-make`, would otherwise let a renamed or deleted
+test pass silently.
+
 ### Run it locally
 
 ```bash
