@@ -1,5 +1,5 @@
 info:
-  name: POST /api/v1/circles
+  name: Create a circle (setup) → 201
   type: http
   seq: 1
 

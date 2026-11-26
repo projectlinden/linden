@@ -1,5 +1,5 @@
 info:
-  name: GET /api/v1/me (remember my id)
+  name: Remember my id
   type: http
   seq: 6
 

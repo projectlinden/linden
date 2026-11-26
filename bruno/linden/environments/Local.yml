@@ -1,8 +1,5 @@
 name: Local
 variables:
-  - name: URL
-    value: http://localhost:8080/api/v1/me
-    description: ""
   - name: URL_GRAFANA
     value: http://localhost:3000/api/
     description: ""
@@ -15,5 +12,8 @@ variables:
   - name: API_URL
     value: http://localhost:8080/api/v1
     description: ""
+  - name: memberId
+    value: ""
+    description: "For API > Circles > Remove a member – a member's user id"
   - secret: true
     name: grafanaPassword

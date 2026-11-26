@@ -1,5 +1,5 @@
 info:
-  name: DELETE /api/v1/circles/{id}/members/{memberId} (remove myself)
+  name: Remove myself → 409 use leave
   type: http
   seq: 7
 

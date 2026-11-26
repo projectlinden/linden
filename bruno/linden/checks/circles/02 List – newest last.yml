@@ -1,5 +1,5 @@
 info:
-  name: GET /api/v1/circles
+  name: List my circles → the new one is last
   type: http
   seq: 2
 

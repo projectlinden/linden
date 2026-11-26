@@ -1,11 +1,11 @@
 info:
-  name: GET /api/v1/me
+  name: Get me – the user id is the sub, no session
   type: http
   seq: 1
 
 http:
   method: GET
-  url: "{{URL}}"
+  url: "{{API_URL}}/me"
   auth: inherit
 
 runtime:

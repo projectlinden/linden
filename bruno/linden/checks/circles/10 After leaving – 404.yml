@@ -1,5 +1,5 @@
 info:
-  name: GET /api/v1/circles/{id} (after leaving)
+  name: After leaving → 404, the circle is gone
   type: http
   seq: 10
 

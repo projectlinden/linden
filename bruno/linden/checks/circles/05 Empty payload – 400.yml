@@ -1,5 +1,5 @@
 info:
-  name: POST /api/v1/circles (empty payload)
+  name: Empty payload → 400 naming the field
   type: http
   seq: 5
 

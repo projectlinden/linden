@@ -1,11 +1,11 @@
 info:
-  name: GET /api/v1/me (database down)
+  name: Database down → 503 (stop or pause Postgres first)
   type: http
   seq: 1
 
 http:
   method: GET
-  url: "{{URL}}"
+  url: "{{API_URL}}/me"
   auth: inherit
 
 runtime:

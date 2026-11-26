@@ -1,0 +1,26 @@
+info:
+  name: Leave (last member) → 204
+  type: http
+  seq: 9
+
+http:
+  method: DELETE
+  url: "{{API_URL}}/circles/{{circleId}}/members/me"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        // I am the only member of this circle – leaving deletes it (checked by the next request)
+        test("leave a circle → 204 with no body", function () {
+          expect(res.getStatus(), res.getHeader("www-authenticate")).to.equal(204);
+          expect(res.getBody() === undefined || res.getBody() === null || res.getBody() === "").to.equal(true);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
