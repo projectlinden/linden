@@ -4,6 +4,7 @@ import io.github.projectlinden.api.security.AuthenticatedUser;
 import io.github.projectlinden.core.circle.Circle;
 import io.github.projectlinden.core.circle.CircleService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -52,5 +53,24 @@ class CircleController {
     @GetMapping("/{circleId}")
     CircleResponse getCircle(@AuthenticationPrincipal Jwt token, @PathVariable("circleId") UUID circleId) {
         return CircleResponse.from(circleService.getCircle(circleId, AuthenticatedUser.idOf(token)));
+    }
+
+    /**
+     * I leave the circle. The rules (a new owner, or the circle is deleted) live in {@link CircleService#leaveCircle}.
+     */
+    @DeleteMapping("/{circleId}/members/me")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void leaveCircle(@AuthenticationPrincipal Jwt token, @PathVariable("circleId") UUID circleId) {
+        circleService.leaveCircle(circleId, AuthenticatedUser.idOf(token));
+    }
+
+    /**
+     * The owner removes a member – takes effect on the member's next request.
+     */
+    @DeleteMapping("/{circleId}/members/{memberId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void removeMember(@AuthenticationPrincipal Jwt token, @PathVariable("circleId") UUID circleId,
+                      @PathVariable("memberId") UUID memberId) {
+        circleService.removeMember(circleId, AuthenticatedUser.idOf(token), memberId);
     }
 }

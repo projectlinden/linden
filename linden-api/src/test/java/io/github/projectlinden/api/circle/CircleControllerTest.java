@@ -1,9 +1,7 @@
 package io.github.projectlinden.api.circle;
 
 import io.github.projectlinden.api.security.SecurityConfig;
-import io.github.projectlinden.core.circle.Circle;
-import io.github.projectlinden.core.circle.CircleService;
-import io.github.projectlinden.core.circle.NotAMemberException;
+import io.github.projectlinden.core.circle.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +22,12 @@ import static org.mockito.AdditionalMatchers.aryEq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpHeaders.LOCATION;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CircleController.class)
@@ -40,6 +38,7 @@ class CircleControllerTest {
     private static final UUID USER_ID = UUID.fromString("8b2d4f60-1a3c-4e5f-9b7d-2c4e6f8a0b1d");
     private static final UUID CIRCLE_ID = UUID.fromString("3c1e7a52-8f4d-4b6a-9e21-5d7f0a8c4b13");
     private static final UUID OTHER_CIRCLE_ID = UUID.fromString("6a9d2e14-7c3b-4f85-a1d6-0e8b5c7f2a94");
+    private static final UUID MEMBER_ID = UUID.fromString("d4f6a8b0-2c1e-4a3b-8d5f-7e9a1b3c5d70");
     private static final byte[] PAYLOAD = {0, 70, 97, 109};
     private static final String PAYLOAD_BASE64 = "AEZhbQ==";   // the same 4 bytes as Base64 text
 
@@ -204,5 +203,79 @@ class CircleControllerTest {
         // when + then
         mockMvc.perform(get(CIRCLES_URL + "/" + CIRCLE_ID))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("leave a circle → 204; the service is asked to remove my own membership")
+    void leave_asMember_returns204() throws Exception {
+        // when + then
+        mockMvc.perform(delete(CIRCLES_URL + "/" + CIRCLE_ID + "/members/me")
+                        .with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isNoContent());
+        verify(circleService).leaveCircle(CIRCLE_ID, USER_ID);
+    }
+
+    @Test
+    @DisplayName("leave a circle I am not in → 404 circle_not_found")
+    void leave_whenNotAMember_returns404() throws Exception {
+        // given
+        willThrow(new NotAMemberException(CIRCLE_ID)).given(circleService).leaveCircle(CIRCLE_ID, USER_ID);
+
+        // when + then
+        mockMvc.perform(delete(CIRCLES_URL + "/" + CIRCLE_ID + "/members/me")
+                        .with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("circle_not_found"));
+    }
+
+    @Test
+    @DisplayName("the owner removes a member → 204; the service gets circle, acting user and member")
+    void remove_byOwner_returns204() throws Exception {
+        // when + then
+        mockMvc.perform(delete(CIRCLES_URL + "/" + CIRCLE_ID + "/members/" + MEMBER_ID)
+                        .with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isNoContent());
+        verify(circleService).removeMember(CIRCLE_ID, USER_ID, MEMBER_ID);
+    }
+
+    @Test
+    @DisplayName("a member who is not the owner removes someone → 403 not_circle_owner")
+    void remove_byMemberWhoIsNotOwner_returns403() throws Exception {
+        // given
+        willThrow(new NotCircleOwnerException(CIRCLE_ID)).given(circleService).removeMember(CIRCLE_ID, USER_ID, MEMBER_ID);
+
+        // when + then
+        mockMvc.perform(delete(CIRCLES_URL + "/" + CIRCLE_ID + "/members/" + MEMBER_ID)
+                        .with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("not_circle_owner"))
+                .andExpect(jsonPath("$.correlationId").isNotEmpty());
+    }
+
+    @Test
+    @DisplayName("the person to remove is not a member → 404 member_not_found")
+    void remove_whoIsNotAMember_returns404() throws Exception {
+        // given
+        willThrow(new MemberNotFoundException(CIRCLE_ID, MEMBER_ID)).given(circleService).removeMember(CIRCLE_ID, USER_ID, MEMBER_ID);
+
+        // when + then
+        mockMvc.perform(delete(CIRCLES_URL + "/" + CIRCLE_ID + "/members/" + MEMBER_ID)
+                        .with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("member_not_found"));
+    }
+
+    @Test
+    @DisplayName("the owner removes themselves → 409 use_leave_instead")
+    void remove_yourself_returns409() throws Exception {
+        // given
+        willThrow(new CannotRemoveYourselfException(CIRCLE_ID)).given(circleService).removeMember(CIRCLE_ID, USER_ID, USER_ID);
+
+        // when + then
+        mockMvc.perform(delete(CIRCLES_URL + "/" + CIRCLE_ID + "/members/" + USER_ID)
+                        .with(jwt().jwt(token -> token.subject(USER_ID.toString()))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("use_leave_instead"));
     }
 }
