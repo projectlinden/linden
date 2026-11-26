@@ -3,9 +3,14 @@ package io.github.projectlinden;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.repository.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -28,5 +33,44 @@ class ArchitectureTest {
         assertThat(LINDEN_CLASSES.contain("io.github.projectlinden.api.circle.CircleController")).as("api").isTrue();
     }
 
-    // Your rules go here – item 2 onwards
+    private static final String CORE = "io.github.projectlinden.core..";
+    private static final String API = "io.github.projectlinden.api..";
+
+    @Test
+    @DisplayName("core knows nothing about HTTP – no web, servlet or HTTP security classes")
+    void core_knowsNothingAboutHttp() {
+        ArchRule rule = noClasses().that().resideInAPackage(CORE)
+                .should().dependOnClassesThat().resideInAnyPackage(
+                        "org.springframework.web..",
+                        "org.springframework.http..",
+                        "org.springframework.security.web..",
+                        "jakarta.servlet..")
+                .because("the rules must work the same whoever calls them – HTTP lives in linden-api (ENGINEERING.md § 5)");
+        rule.check(LINDEN_CLASSES);
+    }
+
+    @Test
+    @DisplayName("the API holds no rules and no database details – no repositories, JPA or Spring Data")
+    void api_usesServicesNotTheDatabase() {
+        ArchRule rule = noClasses().that().resideInAPackage(API)
+                .should().dependOnClassesThat().areAssignableTo(Repository.class)
+                .orShould().dependOnClassesThat().resideInAnyPackage(
+                        "jakarta.persistence..",
+                        "org.springframework.data..",
+                        "org.hibernate..")
+                .because("every rule (membership, ownership, limits) lives in a core service – a controller that reads "
+                        + "the database itself skips them (ENGINEERING.md § 5)");
+        rule.check(LINDEN_CLASSES);
+    }
+
+    @Test
+    @DisplayName("the API opens no transactions – transactions belong to the core services")
+    void api_opensNoTransactions() {
+        ArchRule classes = noClasses().that().resideInAPackage(API)
+                .should().beAnnotatedWith(Transactional.class);
+        ArchRule methods = noMethods().that().areDeclaredInClassesThat().resideInAPackage(API)
+                .should().beAnnotatedWith(Transactional.class);
+        classes.check(LINDEN_CLASSES);
+        methods.check(LINDEN_CLASSES);
+    }
 }
