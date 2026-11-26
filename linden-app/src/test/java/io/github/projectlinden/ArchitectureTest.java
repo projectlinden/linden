@@ -36,29 +36,33 @@ class ArchitectureTest {
     private static final String API = "io.github.projectlinden.api..";
 
     @Test
-    @DisplayName("core knows nothing about HTTP – no web, servlet or HTTP security classes")
+    @DisplayName("core knows nothing about HTTP or login tokens – no web, servlet or Spring Security classes")
     void core_knowsNothingAboutHttp() {
         ArchRule rule = noClasses().that().resideInAPackage(CORE)
                 .should().dependOnClassesThat().resideInAnyPackage(
                         "org.springframework.web..",
                         "org.springframework.http..",
-                        "org.springframework.security.web..",
+                        "org.springframework.security..",
                         "jakarta.servlet..")
-                .because("the rules must work the same whoever calls them – HTTP lives in linden-api (ENGINEERING.md § 5)");
+                .because("the rules must work the same whoever calls them – HTTP and tokens live in linden-api, "
+                        + "core gets the user only as a UUID (ENGINEERING.md § 5)");
         rule.check(LINDEN_CLASSES);
     }
 
     @Test
-    @DisplayName("the API holds no rules and no database details – no repositories, JPA or Spring Data")
+    @DisplayName("the API holds no rules and no database details – no repositories, JPA, Spring Data, Hibernate or JDBC")
     void api_usesServicesNotTheDatabase() {
         ArchRule rule = noClasses().that().resideInAPackage(API)
                 .should().dependOnClassesThat().areAssignableTo(Repository.class)
                 .orShould().dependOnClassesThat().resideInAnyPackage(
                         "jakarta.persistence..",
                         "org.springframework.data..",
-                        "org.hibernate..")
+                        "org.hibernate..",
+                        "org.springframework.jdbc..",
+                        "javax.sql..",
+                        "java.sql..")
                 .because("every rule (membership, ownership, limits) lives in a core service – a controller that reads "
-                        + "the database itself skips them (ENGINEERING.md § 5)");
+                        + "the database itself, through JPA or plain JDBC, skips them (ENGINEERING.md § 5)");
         rule.check(LINDEN_CLASSES);
     }
 

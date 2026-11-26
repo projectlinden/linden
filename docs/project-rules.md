@@ -4,11 +4,11 @@ The CI job **"Project rules"** (`.github/workflows/rules.yml`) checks the reposi
 and on every push to `main`. It is a **required check** in the ruleset `protect-main`: a pull request with a red
 "Project rules" cannot be merged. Each rule is its own named step, so a red run shows which rule broke.
 
-| Step                           | Rule                                                                                                                                            | Tool                                                                                                                             |
-|--------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
-| **No secrets in Git**          | No password, key or token in any commit of any branch                                                                                           | [gitleaks](https://github.com/gitleaks/gitleaks) (MIT), official image `ghcr.io/gitleaks/gitleaks`, pinned by tag **and** digest |
-| **No content in the database** | Every database column is on the allow list as `metadata` or `encrypted`, with a reason – no readable content                                    | `SchemaClassificationIT` (Testcontainers Postgres)                                                                               |
-| **Module boundaries**          | `linden-core` knows nothing about HTTP; `linden-api` reaches the database only through core services – no repositories, JPA or `@Transactional` | `ArchitectureTest` ([ArchUnit](https://www.archunit.org), Apache-2.0)                                                            |
+| Step                           | Rule                                                                                                                                                            | Tool                                                                                                                             |
+|--------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------|
+| **No secrets in Git**          | No password, key or token in any commit of any branch                                                                                                           | [gitleaks](https://github.com/gitleaks/gitleaks) (MIT), official image `ghcr.io/gitleaks/gitleaks`, pinned by tag **and** digest |
+| **No content in the database** | Every database column is on the allow list as `metadata` or `encrypted`, with a reason – no readable content                                                    | `SchemaClassificationIT` (Testcontainers Postgres)                                                                               |
+| **Module boundaries**          | `linden-core` knows nothing about HTTP or tokens; `linden-api` reaches the database only through core services – no repositories, JPA, JDBC or `@Transactional` | `ArchitectureTest` ([ArchUnit](https://www.archunit.org), Apache-2.0)                                                            |
 
 More rules join this job as they become testable (Dockerfile lint, image pins, licences, known vulnerabilities).
 
@@ -46,12 +46,12 @@ The modules have different jobs: `linden-core` holds every rule, `linden-api` on
 them together. The Maven modules already stop core from using api classes. `ArchitectureTest` (in `linden-app`, the
 only module that sees all three) checks what Maven can't:
 
-- **Core knows nothing about HTTP** – no `org.springframework.web`, `org.springframework.http`,
-  `org.springframework.security.web` or `jakarta.servlet`. One added dependency in `linden-core/pom.xml` would
-  otherwise let HTTP into the rules unnoticed.
-- **The API reaches the database only through services** – no repositories, no `jakarta.persistence`, Spring Data or
-  Hibernate, and no `@Transactional`. A controller that reads the database itself would skip the rules in the services
-  (membership, ownership, limits).
+- **Core knows nothing about HTTP or login tokens** – no `org.springframework.web`, `org.springframework.http`,
+  `org.springframework.security` or `jakarta.servlet`; core gets the user only as a `UUID`. One added dependency in
+  `linden-core/pom.xml` would otherwise let HTTP or tokens into the rules unnoticed.
+- **The API reaches the database only through services** – no repositories, no `jakarta.persistence`, Spring Data,
+  Hibernate or JDBC (`org.springframework.jdbc`, `javax.sql`, `java.sql`), and no `@Transactional`. A controller that
+  reads the database itself would skip the rules in the services (membership, ownership, limits).
 
 Still allowed in the API: Spring's database-neutral exceptions (`org.springframework.dao`,
 `CannotCreateTransactionException`) – `ApiExceptionHandler` turns them into `503`.
