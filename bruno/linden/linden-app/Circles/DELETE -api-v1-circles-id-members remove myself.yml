@@ -1,0 +1,31 @@
+info:
+  name: DELETE /api/v1/circles/{id}/members/{memberId} (remove myself)
+  type: http
+  seq: 7
+
+http:
+  method: DELETE
+  url: "{{API_URL}}/circles/{{circleId}}/members/{{myUserId}}"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        // I own the circle from "POST /api/v1/circles" – removing myself is leaving, which has its own rules
+        test("the owner removes themselves → 409", function () {
+          expect(res.getStatus(), res.getHeader("www-authenticate")).to.equal(409);
+          expect(res.getHeader("content-type")).to.include("application/problem+json");
+        });
+
+        test("problem details point to leave instead", function () {
+          expect(res.getBody().code).to.equal("use_leave_instead");
+          expect(res.getBody().correlationId).to.equal(res.getHeader("x-correlation-id"));
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

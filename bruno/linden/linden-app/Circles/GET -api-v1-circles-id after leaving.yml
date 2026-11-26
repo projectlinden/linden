@@ -1,0 +1,26 @@
+info:
+  name: GET /api/v1/circles/{id} (after leaving)
+  type: http
+  seq: 10
+
+http:
+  method: GET
+  url: "{{API_URL}}/circles/{{circleId}}"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        // I was the last member – the circle is gone, and I am no longer in it either way
+        test("the circle I left → 404 circle_not_found", function () {
+          expect(res.getStatus(), res.getHeader("www-authenticate")).to.equal(404);
+          expect(res.getBody().code).to.equal("circle_not_found");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

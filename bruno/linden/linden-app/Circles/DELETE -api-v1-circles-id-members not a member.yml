@@ -1,0 +1,26 @@
+info:
+  name: DELETE /api/v1/circles/{id}/members/{memberId} (not a member)
+  type: http
+  seq: 8
+
+http:
+  method: DELETE
+  url: "{{API_URL}}/circles/{{circleId}}/members/00000000-0000-4000-8000-000000000000"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        // A user id nobody has – the owner removes someone who isn't in the circle
+        test("remove someone who is not a member → 404 member_not_found", function () {
+          expect(res.getStatus(), res.getHeader("www-authenticate")).to.equal(404);
+          expect(res.getBody().code).to.equal("member_not_found");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
