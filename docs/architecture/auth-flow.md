@@ -174,6 +174,15 @@ removal take effect immediately.
 `404 circle_not_found` – so nobody learns which circle ids exist by trying them (`NotAMemberException`,
 `ApiExceptionHandler`).
 
+**Leaving and removing** (decided 2026-11-25): any member may leave at any time
+(`DELETE /api/v1/circles/{circleId}/members/me`); when the owner leaves, the longest-standing member becomes owner,
+and when the last member leaves, the circle is deleted. Only the owner removes members
+(`DELETE /api/v1/circles/{circleId}/members/{memberId}`): a member who is not the owner gets `403 not_circle_owner`,
+an unknown member `404 member_not_found`, and the owner naming themselves `409 use_leave_instead`. Every membership
+change first locks the circle's row, so two changes to one circle never interleave. Because membership is read from
+Postgres on every request, a removed member loses access on their very next request. The MLS side (new group keys
+after a leave or removal) follows with real encryption.
+
 ---
 
 ## 4. Joining through an invitation link (invite-only)
