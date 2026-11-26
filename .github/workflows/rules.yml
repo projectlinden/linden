@@ -45,3 +45,10 @@ jobs:
           ./mvnw --batch-mode --projects linden-core verify
           -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false
           -Dit.test=SchemaClassificationIT
+
+      # Rule: module boundaries – core knows nothing about HTTP, the API reaches the database only through services
+      # (ENGINEERING.md § 5, § 11). Runs only ArchitectureTest – no Spring, no database, a few seconds.
+      - name: Module boundaries
+        run: >
+          ./mvnw --batch-mode --projects linden-app --also-make test
+          -Dtest=ArchitectureTest -Dsurefire.failIfNoSpecifiedTests=false
