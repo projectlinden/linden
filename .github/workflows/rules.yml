@@ -45,3 +45,14 @@ jobs:
           ./mvnw --batch-mode --projects linden-core verify
           -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false
           -Dit.test=SchemaClassificationIT
+
+      # Rule: module boundaries – core knows nothing about HTTP or tokens, the API reaches the database only through
+      # services (ENGINEERING.md § 5, § 11). Runs only ArchitectureTest – no Spring, no database, a few seconds.
+      # The guard below: failIfNoSpecifiedTests=false (needed for --also-make) would let a renamed or deleted test pass.
+      - name: Module boundaries
+        run: |
+          ./mvnw --batch-mode --projects linden-app --also-make test \
+            -Dtest=ArchitectureTest -Dsurefire.failIfNoSpecifiedTests=false
+          report=linden-app/target/surefire-reports/TEST-io.github.projectlinden.ArchitectureTest.xml
+          test -f "$report" || { echo "::error::ArchitectureTest did not run"; exit 1; }
+          grep -q 'tests="[1-9]' "$report" || { echo "::error::ArchitectureTest ran no tests"; exit 1; }
