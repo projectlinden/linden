@@ -77,4 +77,59 @@ public class CircleService {
         return circleMemberRepository.findById(new CircleMemberId(circleId, userId))
                 .orElseThrow(() -> new NotAMemberException(circleId));
     }
+
+    /**
+     * The user leaves the circle – any member, at any time (VISION.md § 5). When the owner leaves while others remain,
+     * the longest-standing member becomes owner; when the last member leaves, the circle is deleted.
+     *
+     * @throws NotAMemberException if the user is not a member – or the circle does not exist (deliberately the same)
+     */
+    @Transactional
+    public void leaveCircle(UUID circleId, UUID userId) {
+        // One membership change per circle at a time: two members leaving at once must not both think
+        // "someone else is still here" (decided 2026-11-25)
+        lockCircle(circleId);
+
+        CircleMember membership = getMembership(circleId, userId);
+        List<CircleMember> others = circleMemberRepository.findOtherMembersLongestStandingFirst(circleId, userId);
+
+        if (membership.getRole() == CircleRole.OWNER && !others.isEmpty()) {
+            others.getFirst().becomeOwner();   // a circle always has an owner
+        }
+        circleMemberRepository.delete(membership);
+        if (others.isEmpty()) {
+            circleRepository.deleteById(circleId);   // nobody could ever reach it again
+        }
+    }
+
+    /**
+     * The owner removes a member. Takes effect on the member's next request (VISION.md § 5).
+     *
+     * @throws NotAMemberException           if the acting user is not a member – or the circle does not exist
+     * @throws NotCircleOwnerException       if the acting user is a member, but not the owner
+     * @throws CannotRemoveYourselfException if the owner names themselves – that is leaving, with its own rules
+     * @throws MemberNotFoundException       if the person to remove is not a member
+     */
+    @Transactional
+    public void removeMember(UUID circleId, UUID actingUserId, UUID memberId) {
+        lockCircle(circleId);
+        CircleMember acting = getMembership(circleId, actingUserId);
+        if (acting.getRole() != CircleRole.OWNER) {
+            throw new NotCircleOwnerException(circleId);
+        }
+        if (actingUserId.equals(memberId)) {
+            throw new CannotRemoveYourselfException(circleId);
+        }
+        CircleMember member = circleMemberRepository.findById(new CircleMemberId(circleId, memberId))
+                .orElseThrow(() -> new MemberNotFoundException(circleId, memberId));
+        circleMemberRepository.delete(member);
+    }
+
+    /**
+     * Locks the circle's row until the transaction ends – every membership change starts here, so two changes to the
+     * same circle happen one after the other (decided 2026-11-25).
+     */
+    private void lockCircle(UUID circleId) {
+        circleRepository.findByIdForUpdate(circleId).orElseThrow(() -> new NotAMemberException(circleId));
+    }
 }

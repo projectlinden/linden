@@ -49,4 +49,12 @@ public class CircleMember {
     public @Nullable Instant getJoinedAt() {
         return joinedAt;
     }
+
+    /**
+     * Makes this member the circle's owner – used when the owner leaves (the longest-standing member takes over).
+     */
+    void becomeOwner() {
+        this.role = CircleRole.OWNER;
+    }
+
 }

@@ -1,7 +1,10 @@
 package io.github.projectlinden.api.error;
 
 import io.github.projectlinden.api.logging.CorrelationIdFilter;
+import io.github.projectlinden.core.circle.CannotRemoveYourselfException;
+import io.github.projectlinden.core.circle.MemberNotFoundException;
 import io.github.projectlinden.core.circle.NotAMemberException;
+import io.github.projectlinden.core.circle.NotCircleOwnerException;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +82,47 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
                 "This circle doesn't exist, or you're not a member of it.");
         problem.setTitle("Circle not found");
         problem.setProperty("code", "circle_not_found");
+        addCorrelationId(problem);
+        return problem;
+    }
+
+    /**
+     * A member tried something only the owner may do. They know the circle exists, so 403 reveals nothing new.
+     */
+    @ExceptionHandler(NotCircleOwnerException.class)
+    ProblemDetail handleNotCircleOwner(NotCircleOwnerException exception) {
+        LOGGER.debug("Not the owner of circle {}", exception.getCircleId());
+        return problem(HttpStatus.FORBIDDEN, "Not the circle's owner",
+                "Only the circle's owner can do this.", "not_circle_owner");
+    }
+
+    /**
+     * The person to act on is not in the circle – the owner sees the member list anyway, so this reveals nothing.
+     */
+    @ExceptionHandler(MemberNotFoundException.class)
+    ProblemDetail handleMemberNotFound(MemberNotFoundException exception) {
+        LOGGER.debug("Member not found in circle {}", exception.getCircleId());
+        return problem(HttpStatus.NOT_FOUND, "Member not found",
+                "This person isn't a member of the circle.", "member_not_found");
+    }
+
+    /**
+     * Removing yourself is leaving – which has its own rules, so the client is pointed there.
+     */
+    @ExceptionHandler(CannotRemoveYourselfException.class)
+    ProblemDetail handleCannotRemoveYourself(CannotRemoveYourselfException exception) {
+        LOGGER.debug("Owner tried to remove themselves from circle {}", exception.getCircleId());
+        return problem(HttpStatus.CONFLICT, "Use leave instead",
+                "To leave a circle, use leave – it makes sure the circle keeps an owner.", "use_leave_instead");
+    }
+
+    /**
+     * One Problem Details shape for every domain error: status, title, a human detail, a stable code, the correlation id.
+     */
+    private ProblemDetail problem(HttpStatus status, String title, String detail, String code) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setTitle(title);
+        problem.setProperty("code", code);
         addCorrelationId(problem);
         return problem;
     }
