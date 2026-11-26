@@ -7,6 +7,7 @@ import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.repository.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
@@ -66,12 +67,9 @@ class ArchitectureTest {
     @DisplayName("the API opens no transactions – transactions belong to the core services")
     void api_opensNoTransactions() {
         ArchRule classes = noClasses().that().resideInAPackage(API)
-                .should().beAnnotatedWith(org.springframework.transaction.annotation.Transactional.class)
-                .orShould().beAnnotatedWith(jakarta.transaction.Transactional.class);
+                .should().beAnnotatedWith(Transactional.class);
         ArchRule methods = noMethods().that().areDeclaredInClassesThat().resideInAPackage(API)
-                .should().beAnnotatedWith(org.springframework.transaction.annotation.Transactional.class)
-                .orShould().beAnnotatedWith(jakarta.transaction.Transactional.class)
-                .because("transactions belong to the core services – Spring honours both annotations");
+                .should().beAnnotatedWith(Transactional.class);
         classes.check(LINDEN_CLASSES);
         methods.check(LINDEN_CLASSES);
     }

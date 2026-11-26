@@ -8,7 +8,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -51,7 +50,6 @@ class CircleController {
     /**
      * One circle, for one of its members. Not a member – or no such circle – becomes 404 (ApiExceptionHandler).
      */
-    @Transactional
     @GetMapping("/{circleId}")
     CircleResponse getCircle(@AuthenticationPrincipal Jwt token, @PathVariable("circleId") UUID circleId) {
         return CircleResponse.from(circleService.getCircle(circleId, AuthenticatedUser.idOf(token)));
